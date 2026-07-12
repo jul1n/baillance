@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f2ede3;
+  color: #1c1917;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #1c1917;
+  color: #f2ede3;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Fine-grained optical settings for the big editorial type */
+.display-type {
+  font-family: var(--font-serif);
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.015em;
+}
