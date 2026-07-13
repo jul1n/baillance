@@ -1,12 +1,8 @@
-import React, { useCallback, useRef, useState } from "react";
-import {
-  AnimatePresence,
-  motion,
-  useMotionValue,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import React, { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { BASE, THEMES } from "../data/themes.jsx";
+import LineScene from "./LineScene.jsx";
+import SheetOverlay from "./SheetOverlay.jsx";
 
 const EASE = [0.32, 0.72, 0, 1];
 
@@ -40,39 +36,18 @@ const TYPO = {
   },
 };
 
+/* Les cinq maquettes filaires, construites une seule fois par la scène. */
+const HERO_MODELS = THEMES.map((t) => ({ id: t.id, build: t.build, el: t.el }));
+
 export default function Hero() {
   const [active, setActive] = useState(null);
   const theme = active ? THEMES.find((t) => t.id === active) : null;
-  const sectionRef = useRef(null);
-
-  /* Parallaxe : la position de la souris incline très légèrement la
-     planche de croquis, comme si on la regardait en volume. */
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 42, damping: 16, mass: 0.9 });
-  const sy = useSpring(my, { stiffness: 42, damping: 16, mass: 0.9 });
-  const px = useTransform(sx, (v) => v * 22);
-  const py = useTransform(sy, (v) => v * 14);
-  const rx = useTransform(sy, (v) => v * -2.4);
-  const ry = useTransform(sx, (v) => v * 3.2);
-
-  const onMouseMove = useCallback(
-    (e) => {
-      const r = sectionRef.current?.getBoundingClientRect();
-      if (!r) return;
-      mx.set(((e.clientX - r.left) / r.width - 0.5) * 2);
-      my.set(((e.clientY - r.top) / r.height - 0.5) * 2);
-    },
-    [mx, my]
-  );
 
   const scrollTo = (id) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
     <motion.section
-      ref={sectionRef}
-      onMouseMove={onMouseMove}
       className="relative h-screen w-screen overflow-hidden"
       animate={{ backgroundColor: theme ? theme.bg : BASE.bg }}
       transition={{ duration: 0.7, ease: EASE }}
@@ -91,38 +66,28 @@ export default function Hero() {
         </p>
       </motion.header>
 
-      {/* ---------- croquis d'arrière-plan ---------- */}
-      <div className="absolute inset-0 z-0" style={{ perspective: 1100 }}>
+      {/* ---------- maquette filaire 3D (Three.js + GSAP) ---------- */}
+      <div className="absolute inset-0 z-0">
+        <LineScene
+          models={HERO_MODELS}
+          activeId={active}
+          interactive
+          spinSpeed={0.085}
+          zoom={1.16}
+        />
+        {/* habillage de planche : cadre, notes, cartouche */}
         <AnimatePresence>
           {theme && (
             <motion.div
               key={theme.id}
               className="absolute inset-0"
-              initial={{ opacity: 0, scale: 1.045 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.99 }}
-              transition={{ duration: 0.65, ease: EASE }}
               style={{ color: theme.ink }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: EASE }}
             >
-              {/* couche parallaxe pilotée par la souris */}
-              <motion.div
-                className="h-full w-full"
-                style={{ x: px, y: py, rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
-              >
-                {/* dérive continue, très lente : la planche “respire” */}
-                <motion.div
-                  className="h-full w-full p-6 sm:p-10"
-                  animate={{ rotate: [-0.7, 0.7], y: [-7, 7], scale: [1, 1.018] }}
-                  transition={{
-                    duration: 16,
-                    repeat: Infinity,
-                    repeatType: "mirror",
-                    ease: "easeInOut",
-                  }}
-                >
-                  <theme.Sketch id={`hero-${theme.id}`} />
-                </motion.div>
-              </motion.div>
+              <SheetOverlay theme={theme} id="hero" />
             </motion.div>
           )}
         </AnimatePresence>
