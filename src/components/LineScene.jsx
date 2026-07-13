@@ -53,6 +53,7 @@ export default function LineScene({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     renderer.domElement.style.cssText =
       "position:absolute;inset:0;width:100%;height:100%;display:block;";
+    renderer.domElement.classList.add("dynamic-shadow");
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -157,17 +158,27 @@ export default function LineScene({
       window.addEventListener("mousemove", onMove);
     }
 
-    /* rotation supplémentaire pilotée par le scroll de la section */
+    /* rotation et tracé progressif pilotés par le scroll de la section */
     let st = null;
     if (scrollDrive) {
+      const isMobile = window.innerWidth < 1024;
       st = ScrollTrigger.create({
         trigger: host,
-        start: "top bottom",
-        end: "bottom top",
-        scrub: 0.8,
+        scroller: isMobile ? ".horizontal-scroll-container" : window,
+        horizontal: isMobile,
+        start: isMobile ? "left right" : "top bottom",
+        end: isMobile ? "right left" : "bottom top",
+        scrub: 1, // scrubbing plus direct
         onUpdate: (self) => {
-          S.scrollRot = (self.progress - 0.5) * 0.85 * spinDirection;
+          // Rotation qui suit exactement le scroll (180 degrés)
+          S.scrollRot = (self.progress - 0.5) * Math.PI * spinDirection;
         },
+        onEnter: () => {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+        },
+        onEnterBack: () => {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+        }
       });
     }
 

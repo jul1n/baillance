@@ -26,6 +26,8 @@ export default function Intercalaire({ open, onClose, pageRef }) {
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
   const [invalid, setInvalid] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   const rootRef = useRef(null);
   const sheetRef = useRef(null);
@@ -43,6 +45,8 @@ export default function Intercalaire({ open, onClose, pageRef }) {
       closingRef.current = false;
       setSent(false);
       setInvalid(false);
+      setErrorMsg(null);
+      setLoading(false);
       setEmail("");
       setMounted(true);
     }
@@ -75,7 +79,7 @@ export default function Intercalaire({ open, onClose, pageRef }) {
       /* la feuille arrive du bas, rotation X 2° → 0 */
       tl.fromTo(
         sheet,
-        { y: 36, opacity: 0, rotationX: 2, transformPerspective: 1400 },
+        { y: 36, opacity: 0, rotationX: 2, transformPerspective: 1200 },
         { y: 0, opacity: 1, rotationX: 0, duration: 0.85 },
         0.05
       );
@@ -96,10 +100,45 @@ export default function Intercalaire({ open, onClose, pageRef }) {
       );
     }, root);
 
+    const onMove = (e) => {
+      if (reduced.current || !with3D.current) return;
+      const rect = sheet.getBoundingClientRect();
+      const x = e.clientX - (rect.left + rect.width / 2);
+      const y = e.clientY - (rect.top + rect.height / 2);
+      const normX = x / (rect.width / 2);
+      const normY = y / (rect.height / 2);
+
+      gsap.to(sheet, {
+        rotationY: normX * 5,
+        rotationX: -normY * 5,
+        transformPerspective: 1200,
+        ease: "power2.out",
+        duration: 0.4,
+        overwrite: "auto",
+      });
+    };
+
+    const onLeave = () => {
+      if (reduced.current || !with3D.current) return;
+      gsap.to(sheet, {
+        rotationY: 0,
+        rotationX: 0,
+        transformPerspective: 1200,
+        ease: "power2.out",
+        duration: 0.6,
+        overwrite: "auto",
+      });
+    };
+
+    window.addEventListener("mousemove", onMove);
+    sheet.addEventListener("mouseleave", onLeave);
+
     return () => {
       ctx.revert();
       document.body.style.overflow = "";
       if (page) gsap.set(page, { clearProps: "all" });
+      window.removeEventListener("mousemove", onMove);
+      sheet.removeEventListener("mouseleave", onLeave);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
@@ -173,15 +212,36 @@ export default function Intercalaire({ open, onClose, pageRef }) {
     }
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    /* point de branchement du service de correspondance (API emailing) */
-    setSent(true);
+    setLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const webhookUrl = import.meta.env.VITE_WEBHOOK_URL || "/api/subscribe";
+      if (webhookUrl) {
+        const response = await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), source: "Carnets Baillance" }),
+        });
+        if (!response.ok) throw new Error("Erreur serveur");
+      } else {
+        // En développement, simuler une attente
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+      setSent(true);
+    } catch (err) {
+      console.error("Erreur lors de l'enregistrement", err);
+      setErrorMsg("Une erreur est survenue, veuillez réessayer.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!mounted) return null;
@@ -195,10 +255,10 @@ export default function Intercalaire({ open, onClose, pageRef }) {
       aria-labelledby="ic-title"
       onKeyDown={onKeyDown}
     >
-      {/* voile ivoire : le Carnet reste lisible derrière */}
+      {/* voile ivoire plus prononcé pour un meilleur contraste */}
       <div
         className="absolute inset-0"
-        style={{ backgroundColor: "rgba(240,234,221,0.62)" }}
+        style={{ backgroundColor: "rgba(228, 222, 208, 0.88)" }}
         onMouseDown={close}
       />
 
@@ -212,7 +272,7 @@ export default function Intercalaire({ open, onClose, pageRef }) {
           tabIndex={-1}
           className="paper-grain pointer-events-auto relative my-auto w-full max-w-[41rem] px-7 py-10 outline-none sm:px-14 sm:py-14"
           style={{
-            backgroundColor: "rgba(248,244,235,0.97)",
+            backgroundColor: "#FCFAF7",
             color: "#1F1B16",
             boxShadow: "0 1px 0 rgba(31,27,22,0.08), 0 18px 50px -30px rgba(31,27,22,0.35)",
           }}
@@ -225,13 +285,13 @@ export default function Intercalaire({ open, onClose, pageRef }) {
           >
             <rect
               className="ic-frame"
-              stroke="currentColor" strokeWidth="1" strokeOpacity="0.55"
+              stroke="currentColor" strokeWidth="1" strokeOpacity="0.75"
               pathLength="1" strokeDasharray="1"
               style={{ x: 10, y: 10, width: "calc(100% - 20px)", height: "calc(100% - 20px)" }}
             />
             <rect
               className="ic-frame"
-              stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.3"
+              stroke="currentColor" strokeWidth="0.5" strokeOpacity="0.45"
               pathLength="1" strokeDasharray="1"
               style={{ x: 15, y: 15, width: "calc(100% - 30px)", height: "calc(100% - 30px)" }}
             />
@@ -246,50 +306,47 @@ export default function Intercalaire({ open, onClose, pageRef }) {
               ["right-[3px] bottom-[9.5px]", "right-[9.5px] bottom-[3px]"],
             ].map(([hz, vt], i) => (
               <React.Fragment key={i}>
-                <span className={`absolute ${hz} h-px w-[14px] bg-current opacity-45`} />
-                <span className={`absolute ${vt} h-[14px] w-px bg-current opacity-45`} />
+                <span className={`absolute ${hz} h-px w-[14px] bg-current opacity-65`} />
+                <span className={`absolute ${vt} h-[14px] w-px bg-current opacity-65`} />
               </React.Fragment>
             ))}
-            <span className="absolute left-1/2 top-[4px] h-[11px] w-px -translate-x-1/2 bg-current opacity-40" />
-            <span className="absolute bottom-[4px] left-1/2 h-[11px] w-px -translate-x-1/2 bg-current opacity-40" />
-            <span className="absolute left-[4px] top-1/2 h-px w-[11px] -translate-y-1/2 bg-current opacity-40" />
-            <span className="absolute right-[4px] top-1/2 h-px w-[11px] -translate-y-1/2 bg-current opacity-40" />
+            <span className="absolute left-1/2 top-[4px] h-[11px] w-px -translate-x-1/2 bg-current opacity-60" />
+            <span className="absolute bottom-[4px] left-1/2 h-[11px] w-px -translate-x-1/2 bg-current opacity-60" />
+            <span className="absolute left-[4px] top-1/2 h-px w-[11px] -translate-y-1/2 bg-current opacity-60" />
+            <span className="absolute right-[4px] top-1/2 h-px w-[11px] -translate-y-1/2 bg-current opacity-60" />
           </div>
 
           {/* fermer, en annotation discrète */}
           <button
             type="button"
             onClick={close}
-            className="ic-seq ic-focus absolute right-5 top-4 font-sans text-[0.6rem] font-medium uppercase tracking-[0.28em] opacity-55 transition-opacity hover:opacity-100"
-            aria-label="Fermer l'intercalaire et poursuivre la lecture"
+            className="ic-seq ic-focus absolute right-5 top-4 font-sans text-[0.6rem] font-medium uppercase tracking-[0.28em] opacity-75 transition-opacity hover:opacity-100"
+            aria-label="Fermer la lettre d'information"
           >
             fermer ✕
           </button>
 
           {/* en-tête technique */}
           <header className="ic-seq">
-            <p className="font-sans text-[0.7rem] font-semibold uppercase tracking-[0.34em]">
-              Baillance
-            </p>
-            <p className="mt-1 font-sans text-[0.6rem] font-medium uppercase tracking-[0.3em] opacity-60">
+            <p className="font-sans text-[0.6rem] font-medium uppercase tracking-[0.3em] opacity-70">
               Intercalaire — correspondance
             </p>
           </header>
 
-          <div className="ic-seq mt-6 h-px w-14 bg-current opacity-40" aria-hidden="true" />
+          <div className="ic-seq mt-5 h-px w-14 bg-current opacity-50" aria-hidden="true" />
 
           {/* titre */}
           <h2
             id="ic-title"
-            className="ic-seq display-type mt-6 text-3xl leading-tight sm:text-4xl"
+            className="ic-seq display-type mt-6 text-3xl italic leading-tight sm:text-4xl"
             style={{ fontWeight: 380 }}
           >
-            Avant d'ouvrir ce <em className="italic">Carnet</em>
+            Les Carnets Baillance
           </h2>
 
           {/* texte */}
-          <p className="ic-seq mt-5 max-w-[46ch] font-serif text-[0.98rem] leading-relaxed opacity-85 sm:text-base">
-            Les Carnets Baillance paraissent sous la forme d'une correspondance
+          <p className="ic-seq mt-5 max-w-[46ch] font-serif text-[0.98rem] leading-relaxed opacity-95 sm:text-base">
+            paraissent sous la forme d'une correspondance
             électronique. Chaque nouveau numéro est adressé dès sa publication à
             celles et ceux qui souhaitent en être destinataires.
           </p>
@@ -297,7 +354,7 @@ export default function Intercalaire({ open, onClose, pageRef }) {
           {/* champ + actions / confirmation */}
           <div className="mt-8 min-h-[7.5rem]" aria-live="polite">
             {sent ? (
-              <p className="font-serif text-base italic leading-relaxed">
+              <p className="font-serif text-base italic leading-relaxed opacity-95">
                 Adresse enregistrée. Le prochain Carnet vous sera adressé dès sa
                 publication.
               </p>
@@ -305,9 +362,9 @@ export default function Intercalaire({ open, onClose, pageRef }) {
               <form onSubmit={submit} noValidate>
                 <label
                   htmlFor="ic-email"
-                  className="ic-seq block font-sans text-[0.62rem] font-medium uppercase tracking-[0.3em] opacity-60"
+                  className="sr-only"
                 >
-                  Adresse électronique
+                  Adresse de courriel
                 </label>
                 <input
                   id="ic-email"
@@ -316,32 +373,31 @@ export default function Intercalaire({ open, onClose, pageRef }) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (invalid) setInvalid(false);
+                     setEmail(e.target.value);
+                     if (invalid) setInvalid(false);
                   }}
                   aria-invalid={invalid || undefined}
                   aria-describedby={invalid ? "ic-email-err" : undefined}
-                  placeholder="prenom.nom@exemple.fr"
-                  className="ic-seq ic-input mt-2 w-full max-w-[26rem] bg-transparent pb-2 font-serif text-lg italic placeholder:not-italic placeholder:opacity-35"
+                  placeholder="Renseignez ici votre adresse de courriel"
+                  className="ic-seq ic-input mt-2 w-full max-w-[26rem] bg-transparent pb-2 font-serif text-lg italic placeholder:not-italic placeholder:opacity-75"
                 />
                 {invalid && (
-                  <p id="ic-email-err" className="mt-2 font-serif text-sm italic opacity-70">
+                  <p id="ic-email-err" className="mt-2 font-serif text-sm italic opacity-85">
                     Cette adresse semble incomplète — vérifiez-la, puis reprenez.
                   </p>
                 )}
-                <div className="ic-seq mt-7 flex flex-wrap items-baseline gap-x-8 gap-y-4">
+                {errorMsg && (
+                  <p className="mt-2 font-serif text-sm italic opacity-85 text-red-800">
+                    {errorMsg}
+                  </p>
+                )}
+                <div className="ic-seq mt-7">
                   <button
                     type="submit"
-                    className="ic-focus border border-current bg-transparent px-5 py-2.5 font-sans text-[0.66rem] font-medium uppercase tracking-[0.28em] transition-colors hover:bg-[#1F1B16] hover:text-[#F8F4EB]"
+                    disabled={loading}
+                    className="ic-focus border border-current bg-transparent px-6 py-2.5 font-sans text-[0.66rem] font-medium uppercase tracking-[0.28em] transition-colors hover:bg-[#1F1B16] hover:text-[#F8F4EB] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Recevoir les prochains Carnets
-                  </button>
-                  <button
-                    type="button"
-                    onClick={close}
-                    className="ic-focus font-serif text-[0.95rem] italic underline decoration-[0.5px] underline-offset-4 opacity-75 transition-opacity hover:opacity-100"
-                  >
-                    ou poursuivre la lecture&nbsp;→
+                    {loading ? "Enregistrement..." : "Recevoir les prochains Carnets"}
                   </button>
                 </div>
               </form>
@@ -350,10 +406,10 @@ export default function Intercalaire({ open, onClose, pageRef }) {
 
           {/* cartouche éditorial */}
           <footer className="ic-seq mt-10 flex items-end justify-between border-t border-current/25 pt-3">
-            <p className="font-sans text-[0.56rem] font-medium uppercase tracking-[0.26em] opacity-50">
-              Carnets Baillance — feuille ajoutée par l'éditeur
+            <p className="font-sans text-[0.56rem] font-medium uppercase tracking-[0.26em] opacity-70">
+              Carnets Baillance
             </p>
-            <p className="font-serif text-[0.68rem] italic opacity-50">f. C/1</p>
+            <p className="font-serif text-[0.68rem] italic opacity-70">f. C/1</p>
           </footer>
         </div>
       </div>

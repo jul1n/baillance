@@ -1,5 +1,253 @@
 import { Pen, windowOn, balustrade, tree, person, planterRow, tuft, bike } from "../lineKit.js";
 
+function inhabitedEastGable(pen, V, FLOORS, FH) {
+  const xe = V.x + V.w;
+  const balconyDepth = 1.45;
+
+  const bays = [
+    { z: V.z + 0.65, w: 3.75 },
+    { z: V.z + 5.1, w: 3.75 },
+    { z: V.z + 9.55, w: 3.75 },
+  ];
+
+  /*
+   * La façade latérale reprend les lignes principales du bâtiment.
+   * Les traits restent plus légers que ceux de la façade principale.
+   */
+  for (let f = 1; f < FLOORS; f++) {
+    pen.seg(
+      "medium",
+      [xe + 0.02, f * FH, V.z + 0.3],
+      [xe + 0.02, f * FH, V.z + V.d - 0.3]
+    );
+  }
+
+  for (const z of [
+    V.z + 0.35,
+    V.z + 4.85,
+    V.z + 9.3,
+    V.z + V.d - 0.35,
+  ]) {
+    pen.seg(
+      "faint",
+      [xe + 0.03, 0.35, z],
+      [xe + 0.03, V.h - 0.65, z]
+    );
+  }
+
+  /*
+   * Rez-de-chaussée :
+   * trois grandes baies et une marquise côté rue.
+   */
+  for (const bay of bays) {
+    windowOn(
+      pen,
+      [xe + 0.02, 0.45, bay.z + 0.35],
+      [0, 0, bay.w - 0.7],
+      [0, FH - 0.95, 0],
+      {
+        transom: true,
+        rail: 0,
+      }
+    );
+  }
+
+  // Marquise d’entrée.
+  pen.box(
+    "medium",
+    [xe, 2.7, V.z + 10.05],
+    [1.25, 0.18, 3]
+  );
+
+  pen.seg(
+    "faint",
+    [xe + 1.25, 2.7, V.z + 10.05],
+    [xe + 1.25, 0.15, V.z + 10.05]
+  );
+
+  pen.seg(
+    "faint",
+    [xe + 1.25, 2.7, V.z + 13.05],
+    [xe + 1.25, 0.15, V.z + 13.05]
+  );
+
+  /*
+   * Aux étages, les balcons alternent d’une travée à l’autre.
+   * Cela évite une façade trop uniforme tout en conservant une
+   * composition architecturale crédible.
+   */
+  for (let f = 1; f < FLOORS; f++) {
+    const y = f * FH;
+
+    for (let b = 0; b < bays.length; b++) {
+      const bay = bays[b];
+      const hasBalcony = (f + b) % 2 === 1;
+
+      windowOn(
+        pen,
+        [xe + 0.03, y + 0.48, bay.z + 0.42],
+        [0, 0, bay.w - 0.84],
+        [0, FH - 1.05, 0],
+        {
+          transom: true,
+          rail: hasBalcony ? 0 : 5,
+        }
+      );
+
+      if (hasBalcony) {
+        // Dalle du balcon.
+        pen.box(
+          "medium",
+          [xe, y - 0.18, bay.z],
+          [balconyDepth, 0.18, bay.w]
+        );
+
+        // Garde-corps extérieur.
+        balustrade(
+          pen,
+          [xe + balconyDepth, y, bay.z + 0.12],
+          [xe + balconyDepth, y, bay.z + bay.w - 0.12],
+          {
+            h: 1.05,
+            step: 0.38,
+          }
+        );
+
+        // Retours latéraux du garde-corps.
+        pen.seg(
+          "faint",
+          [xe, y, bay.z + 0.12],
+          [xe + balconyDepth, y + 1.05, bay.z + 0.12]
+        );
+
+        pen.seg(
+          "faint",
+          [xe, y, bay.z + bay.w - 0.12],
+          [xe + balconyDepth, y + 1.05, bay.z + bay.w - 0.12]
+        );
+
+        // Jardinières sur le garde-corps.
+        planterRow(
+          pen,
+          [xe + balconyDepth + 0.02, y + 1.05, bay.z + 0.45],
+          [
+            xe + balconyDepth + 0.02,
+            y + 1.05,
+            bay.z + bay.w - 0.45,
+          ],
+          3,
+          0.62
+        );
+      } else {
+        /*
+         * Les travées sans balcon reçoivent un léger écran vertical,
+         * lisible comme un brise-soleil ou une protection d’intimité.
+         */
+        for (let s = 1; s <= 3; s++) {
+          const z = bay.z + (s * bay.w) / 4;
+
+          pen.seg(
+            "faint",
+            [xe + 0.18, y + 0.35, z],
+            [xe + 0.18, y + FH - 0.35, z]
+          );
+        }
+      }
+    }
+  }
+
+  // Quelques habitants donnent une échelle et montrent l’usage résidentiel.
+  person(
+    pen,
+    xe + balconyDepth - 0.35,
+    V.z + 2.4,
+    {
+      y: 2 * FH,
+      h: 1.66,
+      face: 1.5,
+    }
+  );
+
+  person(
+    pen,
+    xe + balconyDepth - 0.3,
+    V.z + 11.4,
+    {
+      y: 4 * FH,
+      h: 1.72,
+      face: -1.3,
+    }
+  );
+
+  person(
+    pen,
+    xe + 1.75,
+    V.z + 11.6,
+    {
+      h: 1.7,
+      face: 2.6,
+    }
+  );
+}
+
+function transformedBackFacade(pen, V, FLOORS, FH) {
+  const zb = V.z;
+
+  /*
+   * Façade arrière (Nord)
+   * Le même principe de mutation s'applique, avec une cicatrice centrale.
+   * La partie gauche (x < 0) garde la trame tertiaire.
+   * La partie droite (x > 0) est transformée avec l'ajout de coursives extérieures.
+   */
+
+  /* ---------- Moitié tertiaire (x < 0) ---------- */
+  for (let i = 0; i <= 15; i++) {
+    const x = -i * 1.2;
+    pen.seg("medium", [x, 0.4, zb - 0.01], [x, V.h - 0.6, zb - 0.01]);
+  }
+  for (let f = 0; f < FLOORS; f++) {
+    const y = f * FH;
+    pen.seg("strong", [V.x, y, zb - 0.01], [0, y, zb - 0.01]);
+    pen.seg("faint", [V.x, y + 0.95, zb - 0.02], [0, y + 0.95, zb - 0.02]);
+    pen.seg("faint", [V.x, y + FH - 0.35, zb - 0.02], [0, y + FH - 0.35, zb - 0.02]);
+  }
+
+  /* ---------- Ligne de mutation arrière ---------- */
+  pen.dashedCurve(
+    [[0, -0.4, zb - 0.35], [-0.3, V.h * 0.35, zb - 0.4], [0.15, V.h * 0.7, zb - 0.35], [-0.1, V.h + 1.2, zb - 0.3]],
+    { dash: 0.55, gap: 0.4, opacity: 0.75 }
+  );
+
+  /* ---------- Moitié résidentielle (x > 0) ---------- */
+  for (let f = 1; f <= FLOORS; f++) {
+    const y = f * FH;
+    // Dalle de coursive greffée à l'arrière
+    pen.box("medium", [0, y - 0.22, zb - 1.4], [17.6, 0.22, 1.4]);
+    
+    // Garde-corps filant
+    balustrade(pen, [0.15, y, zb - 1.4], [17.45, y, zb - 1.4], { h: 1.05, step: 0.4 });
+    pen.seg("faint", [0.15, y, zb], [0.15, y + 1.05, zb - 1.4]);
+    pen.seg("faint", [17.45, y, zb], [17.45, y + 1.05, zb - 1.4]);
+
+    if (f < FLOORS) {
+      // Ouvertures modifiées
+      for (let b = 0; b < 5; b++) {
+        windowOn(pen, [1.2 + b * 3.3, y + 0.05, zb + 0.01], [2.2, 0, 0], [0, FH - 0.9, 0], {
+          transom: true, rail: 0,
+        });
+      }
+      // Quelques plantes sur les coursives arrière
+      if (f % 2 === 0) {
+        planterRow(pen, [2.5, y + 1.05, zb - 1.4], [14.5, y + 1.05, zb - 1.4], 4, 0.85);
+      }
+    }
+  }
+
+  // Quelques habitants sur les coursives arrière pour donner vie
+  person(pen, 8.5, zb - 0.6, { y: 3 * FH, h: 1.7, face: 3.14 });
+  person(pen, 14.2, zb - 0.6, { y: 1 * FH, h: 1.6, face: 2.8 });
+}
+
 /**
  * TRANSFORMATION TERTIAIRE — un plateau de bureaux R+5 dont la moitié
  * droite est déjà muée en logements : dalles prolongées en balcons,
@@ -66,14 +314,11 @@ export function buildTertiary(ink) {
   person(pen, 4.6, zf + 1, { y: 2 * FH, h: 1.7, face: 0.3 });
   person(pen, 13.2, zf + 1, { y: 4 * FH, h: 1.7, face: -0.4 });
 
-  // pignon est : trame résidentielle avec garde-corps
-  for (let f = 1; f < FLOORS; f++) {
-    for (let b = 0; b < 3; b++) {
-      windowOn(pen, [V.x + V.w + 0.01, f * FH + 0.7, V.z + 1.6 + b * 3.9], [0, 0, 2.2], [0, 1.9, 0], {
-        rail: 5,
-      });
-    }
-  }
+  // pignon est : façade résidentielle désormais réellement habitée
+  inhabitedEastGable(pen, V, FLOORS, FH);
+
+  // façade arrière : la transformation se lit aussi côté nord
+  transformedBackFacade(pen, V, FLOORS, FH);
 
   /* ---------- rooftop rendu aux habitants (moitié droite) ---------- */
   const ry = V.h - 0.6;

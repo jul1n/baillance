@@ -62,7 +62,7 @@ export default function Hero() {
           Baillance<span className="opacity-60">.fr</span>
         </a>
         <p className="hidden text-[0.62rem] font-medium uppercase tracking-[0.32em] opacity-60 sm:block">
-          Habitat &middot; Urbanisme &middot; Évolution de l'immobilier
+          Réflexions sur la ville et ses mutations
         </p>
       </motion.header>
 
@@ -119,12 +119,12 @@ export default function Hero() {
               onMouseEnter={() => setActive(t.id)}
               onFocus={() => setActive(t.id)}
               onClick={() => scrollTo(t.id)}
-              className="display-type relative block cursor-pointer whitespace-nowrap uppercase leading-[0.94] outline-none"
+              className="display-type relative block cursor-pointer whitespace-nowrap uppercase leading-[0.96] outline-none"
               style={{
                 fontSize: typo.size,
                 fontWeight: typo.style.fontWeight,
                 fontStyle: typo.italic ? "italic" : "normal",
-                marginTop: "-0.06em",
+                marginTop: "-0.04em",
                 translate: `${typo.style.x} 0`,
               }}
               animate={{
@@ -135,7 +135,13 @@ export default function Hero() {
               transition={{ duration: 0.55, ease: EASE }}
             >
               <motion.sup
-                className="absolute -left-[1.9em] top-[0.55em] font-sans text-[0.17em] font-medium not-italic tracking-[0.25em]"
+                className="absolute font-sans font-medium not-italic tracking-[0.25em]"
+                style={{
+                  fontSize: "clamp(0.7rem, 1.4vw, 0.9rem)",
+                  right: "100%",
+                  marginRight: "0.75rem",
+                  top: "0.15em"
+                }}
                 animate={{ opacity: isDimmed ? 0 : 0.55 }}
                 transition={{ duration: 0.4 }}
               >

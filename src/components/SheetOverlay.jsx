@@ -34,7 +34,12 @@ export default function SheetOverlay({ theme, id }) {
             )}
           </g>
         ))}
-        <Stamp x={112} y={706} line1={theme.stamp1} line2={theme.stamp2} />
+        <g className="hidden sm:inline">
+          <Stamp x={112} y={706} line1={theme.stamp1} line2={theme.stamp2} />
+        </g>
+        <g className="sm:hidden">
+          <Stamp x={482} y={706} line1={theme.stamp1} line2={theme.stamp2} />
+        </g>
         <NorthArrow x={1108} y={716} />
       </g>
     </svg>

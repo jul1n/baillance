@@ -34,7 +34,7 @@ export default function ThemeSection({ theme, flip = false, onOpenCarnet }) {
             models={models}
             activeId={theme.id}
             scrollDrive
-            spinSpeed={0.055}
+            spinSpeed={0.01}
             spinDirection={flip ? -1 : 1}
             zoom={0.95}
           />
@@ -69,13 +69,6 @@ export default function ThemeSection({ theme, flip = false, onOpenCarnet }) {
             <span className="font-sans text-xs font-medium tracking-[0.3em] opacity-60">
               {theme.index}
             </span>
-            <span className="h-px w-16 bg-current opacity-40" aria-hidden />
-            <CarnetWord
-              onOpen={onOpenCarnet}
-              className="font-sans text-[0.62rem] font-medium uppercase tracking-[0.32em] opacity-60 transition-opacity hover:opacity-100"
-            >
-              Carnet Baillance
-            </CarnetWord>
           </div>
 
           <h2 className="display-type mb-8 text-balance text-4xl uppercase leading-[1.02] sm:text-5xl xl:text-6xl">
@@ -86,20 +79,17 @@ export default function ThemeSection({ theme, flip = false, onOpenCarnet }) {
             {theme.lede}
           </p>
 
-          <p className="font-serif text-base leading-relaxed opacity-80 sm:text-lg">
+          <p className="whitespace-pre-line font-serif text-base leading-relaxed opacity-80 sm:text-lg">
             {theme.body}
           </p>
 
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
+          <button
+            type="button"
+            onClick={onOpenCarnet}
             className="mt-10 inline-flex items-center gap-3 border-b border-current pb-1 text-[0.66rem] font-medium uppercase tracking-[0.3em] opacity-70 transition-opacity hover:opacity-100"
           >
-            Revenir aux thématiques <span aria-hidden>↑</span>
-          </a>
+            Recevoir les Carnets Baillance <span aria-hidden>→</span>
+          </button>
         </motion.div>
       </div>
     </section>
