@@ -32,3 +32,44 @@ body {
   font-variation-settings: "opsz" 144;
   letter-spacing: -0.015em;
 }
+
+/* ------------------------------------------------------------------ */
+/* Intercalaire — feuille de calque insérée dans le Carnet             */
+/* ------------------------------------------------------------------ */
+
+/* grain de papier très léger (bruit SVG inline, aucun asset externe) */
+.paper-grain {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.40 0 0 0 0 0.36 0 0 0 0 0.30 0 0 0 0.05 0'/></filter><rect width='260' height='260' filter='url(%23p)'/></svg>");
+}
+
+/* champ d'adresse : un simple filet, pas de boîte */
+.ic-input {
+  border: 0;
+  border-bottom: 1px solid rgba(31, 27, 22, 0.4);
+  border-radius: 0;
+}
+.ic-input:focus {
+  outline: none;
+  border-bottom-color: rgba(31, 27, 22, 0.9);
+}
+.ic-input:focus-visible {
+  outline: 1px dashed rgba(31, 27, 22, 0.4);
+  outline-offset: 6px;
+}
+
+/* focus clavier visible mais élégant, façon trait de repérage */
+.ic-focus:focus-visible {
+  outline: 1px dashed currentColor;
+  outline-offset: 4px;
+}
+
+/* une occurrence cliquable du mot Carnet */
+.carnet-word {
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+  padding-bottom: 0.08em;
+  transition: border-bottom-color 0.2s ease;
+}
+.carnet-word:hover {
+  border-bottom-style: solid;
+}

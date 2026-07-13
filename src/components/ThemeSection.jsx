@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import LineScene from "./LineScene.jsx";
 import SheetOverlay from "./SheetOverlay.jsx";
+import CarnetWord from "./CarnetWord.jsx";
 
 const EASE = [0.32, 0.72, 0, 1];
 
@@ -10,7 +11,7 @@ const EASE = [0.32, 0.72, 0, 1];
  * (rotation continue + rotation liée au scroll), texte éditorial de
  * l'autre. Les côtés s'inversent une section sur deux.
  */
-export default function ThemeSection({ theme, flip = false }) {
+export default function ThemeSection({ theme, flip = false, onOpenCarnet }) {
   const models = useMemo(
     () => [{ id: theme.id, build: theme.build, el: theme.el }],
     [theme]
@@ -69,9 +70,12 @@ export default function ThemeSection({ theme, flip = false }) {
               {theme.index}
             </span>
             <span className="h-px w-16 bg-current opacity-40" aria-hidden />
-            <span className="font-sans text-[0.62rem] font-medium uppercase tracking-[0.32em] opacity-60">
+            <CarnetWord
+              onOpen={onOpenCarnet}
+              className="font-sans text-[0.62rem] font-medium uppercase tracking-[0.32em] opacity-60 transition-opacity hover:opacity-100"
+            >
               Carnet Baillance
-            </span>
+            </CarnetWord>
           </div>
 
           <h2 className="display-type mb-8 text-balance text-4xl uppercase leading-[1.02] sm:text-5xl xl:text-6xl">

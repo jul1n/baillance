@@ -20,6 +20,17 @@ npm run preview    # prévisualisation du build
   Au clic : scroll fluide vers la section correspondante.
 - **5 sections split-screen** — maquette 3D animée d'un côté, titre + texte éditorial de
   l'autre, fond à la couleur de la thématique (les côtés s'inversent une section sur deux).
+- **Intercalaire de correspondance** (`Intercalaire.jsx`) — cliquer une occurrence du mot
+  « Carnet » (œilleton des sections, mention du pied de page) insère une feuille de calque
+  dans le Carnet : le fond recule à peine et perd du contraste, la feuille monte de 36 px
+  (rotation X 2° → 0), le filet périphérique se dessine, puis titre, texte, champ et actions
+  apparaissent en séquence (~1,25 s, easing power2/power3, sans rebond). Three.js n'y sert
+  qu'à la profondeur : deux calques esquissés entre le Carnet et la feuille, parallaxe
+  souris ≤ 2 px (`IntercalaireDepth.jsx`), désactivés sur mobile, petites configurations et
+  `prefers-reduced-motion`. Fermeture « page tournée » (glissement latéral + fondu) par le
+  lien « poursuivre la lecture », Échap, le clic hors feuille ou l'annotation « fermer » —
+  la lecture n'est jamais bloquée. Dialogue accessible : focus piégé, focus visible façon
+  trait de repérage, `aria-live` sur la confirmation.
 
 ## Les maquettes 3D (`src/three`)
 
