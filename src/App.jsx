@@ -24,33 +24,19 @@ export default function App() {
 
   return (
     <>
-      <div className="spotlight-overlay" aria-hidden="true" />
       {/* le Carnet lui-même — il recule à peine quand l'intercalaire s'ouvre */}
       <div ref={pageRef}>
         <main>
           <Hero />
 
-          <div className="flex w-full items-center justify-between px-6 py-4 lg:hidden">
-            <span className="font-serif text-xs italic tracking-widest opacity-60">
-              Faites glisser pour explorer
-            </span>
-            <span className="font-sans text-xs opacity-40">→</span>
-          </div>
-
-          <div className="horizontal-scroll-container flex w-full snap-x snap-mandatory overflow-x-auto pb-12 px-6 gap-4 lg:block lg:p-0 lg:gap-0 lg:overflow-x-visible lg:snap-none hide-scrollbar">
-            {THEMES.map((theme, i) => (
-              <div 
-                key={theme.id} 
-                className="w-[88vw] shrink-0 snap-center overflow-hidden rounded-[2rem] shadow-sm ring-1 ring-black/5 lg:w-auto lg:shrink lg:rounded-none lg:shadow-none lg:ring-0"
-              >
-                <ThemeSection
-                  theme={theme}
-                  flip={i % 2 === 1}
-                  onOpenCarnet={openCarnet}
-                />
-              </div>
-            ))}
-          </div>
+          {THEMES.map((theme, i) => (
+            <ThemeSection
+              key={theme.id}
+              theme={theme}
+              flip={i % 2 === 1}
+              onOpenCarnet={openCarnet}
+            />
+          ))}
 
           <footer
             className="flex flex-col items-center gap-6 px-6 py-10 text-center"

@@ -34,7 +34,7 @@ export default function ThemeSection({ theme, flip = false, onOpenCarnet }) {
             models={models}
             activeId={theme.id}
             scrollDrive
-            spinSpeed={0.01}
+            spinSpeed={0.055}
             spinDirection={flip ? -1 : 1}
             zoom={0.95}
           />

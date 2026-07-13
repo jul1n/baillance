@@ -104,7 +104,7 @@ export default function Hero() {
 
       {/* ---------- les cinq expressions entremêlées ---------- */}
       <nav
-        className="relative z-20 flex h-full w-full flex-col items-center justify-center"
+        className="pointer-events-none relative z-20 flex h-full w-full flex-col items-center justify-center"
         aria-label="Thématiques"
         onMouseLeave={() => setActive(null)}
       >
@@ -119,7 +119,7 @@ export default function Hero() {
               onMouseEnter={() => setActive(t.id)}
               onFocus={() => setActive(t.id)}
               onClick={() => scrollTo(t.id)}
-              className="display-type relative block cursor-pointer whitespace-nowrap uppercase leading-[0.96] outline-none"
+              className="pointer-events-auto display-type relative block cursor-pointer whitespace-nowrap uppercase leading-[0.96] outline-none"
               style={{
                 fontSize: typo.size,
                 fontWeight: typo.style.fontWeight,

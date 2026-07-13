@@ -7,28 +7,20 @@ gsap.registerPlugin(ScrollTrigger);
 
 /**
  * Scène filaire Three.js pilotée par GSAP.
- *
- * - caméra orthographique en axonométrie, comme une planche d'archi ;
- * - le modèle actif tourne réellement sur lui-même (turntable continu) ;
- * - la souris incline la caméra (vraie parallaxe 3D, amortie) ;
- * - GSAP anime les transitions entre modèles (rotation + « mise en
- *   traits » : les lignes de construction montent avant les traits
- *   forts) et, en option, une rotation liée au scroll (ScrollTrigger).
- *
- * `models` : [{ id, build: (ink) => THREE.Group }]  (construits une fois)
  */
 export default function LineScene({
   models,
   activeId,
   interactive = false,
   scrollDrive = false,
-  spinSpeed = 0.07,
+  spinSpeed = 0.055,
   spinDirection = 1,
   zoom = 1,
   lookHeight = 0.34,
   className = "",
 }) {
   const hostRef = useRef(null);
+  
   const S = useRef({
     entries: {},
     currentId: null,
@@ -39,6 +31,36 @@ export default function LineScene({
     pendingIntro: null,
   }).current;
 
+  // -- Gestion du Drag & Drop via React --
+  const isDragging = useRef(false);
+  const prevX = useRef(0);
+
+  const handlePointerDown = (e) => {
+    isDragging.current = true;
+    prevX.current = e.clientX;
+    if (e.target && e.target.setPointerCapture) {
+      try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
+    }
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging.current) return;
+    const deltaX = e.clientX - prevX.current;
+    prevX.current = e.clientX;
+    // On cible le modèle actuellement actif
+    const wrap = S.entries[activeId];
+    if (wrap) {
+      wrap.userData.spin += deltaX * 0.005 * spinDirection;
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    isDragging.current = false;
+    if (e.target && e.target.hasPointerCapture && e.target.hasPointerCapture(e.pointerId)) {
+      try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+    }
+  };
+
   /* ------------------------- init (une fois) ------------------------- */
   useEffect(() => {
     const host = hostRef.current;
@@ -48,12 +70,11 @@ export default function LineScene({
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch {
-      return undefined; // pas de WebGL : le fond thématique reste seul
+      return undefined;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
     renderer.domElement.style.cssText =
       "position:absolute;inset:0;width:100%;height:100%;display:block;";
-    renderer.domElement.classList.add("dynamic-shadow");
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -61,8 +82,6 @@ export default function LineScene({
     const rig = { az: -Math.PI / 4, el: 0.62, look: 6 };
     S.rig = rig;
 
-    /* construit et normalise chaque modèle : centré, posé au sol,
-       mis à l'échelle commune (visée ≈ 30 unités hors-tout) */
     for (const m of models) {
       const inner = m.build();
       const box = new THREE.Box3().setFromObject(inner);
@@ -103,7 +122,6 @@ export default function LineScene({
     ro.observe(host);
     resize();
 
-    /* boucle : rotation réelle + caméra parallaxe */
     const clock = new THREE.Clock();
     let raf = 0;
     const loop = () => {
@@ -112,7 +130,9 @@ export default function LineScene({
       if (!S.visible) return;
       const wrap = S.entries[S.currentId];
       if (wrap) {
-        wrap.userData.spin += dt * spinSpeed * spinDirection;
+        if (!isDragging.current) {
+          wrap.userData.spin += dt * spinSpeed * spinDirection;
+        }
         wrap.rotation.y = wrap.userData.spin + S.scrollRot;
         rig.look = wrap.userData.h * lookHeight;
       }
@@ -128,7 +148,6 @@ export default function LineScene({
     };
     loop();
 
-    /* ne rend que lorsque visible ; déclenche l'intro différée */
     const io = new IntersectionObserver(
       ([e]) => {
         S.visible = e.isIntersecting;
@@ -142,7 +161,6 @@ export default function LineScene({
     );
     io.observe(host);
 
-    /* parallaxe souris amortie par GSAP */
     let onMove = null;
     if (interactive) {
       onMove = (e) => {
@@ -158,20 +176,15 @@ export default function LineScene({
       window.addEventListener("mousemove", onMove);
     }
 
-    /* rotation et tracé progressif pilotés par le scroll de la section */
     let st = null;
     if (scrollDrive) {
-      const isMobile = window.innerWidth < 1024;
       st = ScrollTrigger.create({
         trigger: host,
-        scroller: isMobile ? ".horizontal-scroll-container" : window,
-        horizontal: isMobile,
-        start: isMobile ? "left right" : "top bottom",
-        end: isMobile ? "right left" : "bottom top",
-        scrub: 1, // scrubbing plus direct
+        start: "top bottom",
+        end: "bottom top",
+        scrub: 0.8,
         onUpdate: (self) => {
-          // Rotation qui suit exactement le scroll (180 degrés)
-          S.scrollRot = (self.progress - 0.5) * Math.PI * spinDirection;
+          S.scrollRot = (self.progress - 0.5) * 0.85 * spinDirection;
         },
         onEnter: () => {
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
@@ -182,16 +195,13 @@ export default function LineScene({
       });
     }
 
-    /* --- transitions d'entrée / sortie, partagées avec l'effet actif --- */
     S.runIntro = (id) => {
       const wrap = S.entries[id];
       if (!wrap) return;
       wrap.visible = true;
       const { mats, pivot } = wrap.userData;
       gsap.killTweensOf([pivot.rotation, pivot.scale, ...mats]);
-      // la caméra s'incline vers le point de vue propre à la planche
       gsap.to(S.rig, { el: wrap.userData.el, duration: 1.4, ease: "power2.inOut" });
-      // « mise en traits » : estompé → moyen → fort, comme un dessin qui monte
       const sorted = [...mats].sort(
         (a, b) => a.userData.baseOpacity - b.userData.baseOpacity
       );
@@ -215,6 +225,7 @@ export default function LineScene({
         { x: 1, y: 1, z: 1, duration: 1.1, ease: "power2.out" }
       );
     };
+    
     S.runOutro = (id) => {
       const wrap = S.entries[id];
       if (!wrap) return;
@@ -233,6 +244,7 @@ export default function LineScene({
         },
       });
     };
+    
     S.ready = true;
     if (S.queuedActive !== undefined) {
       const q = S.queuedActive;
@@ -269,7 +281,7 @@ export default function LineScene({
       if (prev) S.runOutro(prev);
       if (id) {
         if (S.visible) S.runIntro(id);
-        else S.pendingIntro = id; // l'intro attend d'entrer dans le viewport
+        else S.pendingIntro = id;
       }
     };
     if (!S.ready) {
@@ -283,7 +295,12 @@ export default function LineScene({
   return (
     <div
       ref={hostRef}
-      className={`pointer-events-none absolute inset-0 ${className}`}
+      className={`absolute inset-0 cursor-grab active:cursor-grabbing select-none ${className}`}
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       aria-hidden="true"
     />
   );
