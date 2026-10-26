@@ -1,13 +1,16 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 /* ------------------------------------------------------------------ */
 /*  Boîte à outils de dessin filaire 3D — l'équivalent volumique du    */
-/*  crayon : trois poids de trait (fort / moyen / estompé), courbes    */
-/*  pointillées, et vocabulaire d'architecture réutilisable.           */
+/*  crayon : quatre poids de trait (fort / moyen / estompé / fin),     */
+/*  tirets, cotes, lettrage, volumes masquants (parties cachées) et    */
+/*  vocabulaire d'architecture réutilisable.                           */
 /* ------------------------------------------------------------------ */
 
 export const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 export const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+export const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 /* Jitter déterministe : les sommets identiques tremblent pareil,
    les lignes restent connectées mais perdent leur froideur CAO. */
@@ -16,13 +19,88 @@ const jit = (x, y, z, k) => {
   return (h - Math.floor(h) - 0.5) * k;
 };
 
-const WEIGHTS = { strong: 0.92, medium: 0.5, faint: 0.2 };
+const WEIGHTS = { strong: 0.92, medium: 0.5, faint: 0.22, hair: 0.12 };
 
 export class Pen {
   constructor({ wobble = 0.05 } = {}) {
-    this.buf = { strong: [], medium: [], faint: [] };
+    this.buf = { strong: [], medium: [], faint: [], hair: [] };
     this.dashes = [];
+    this.solids = [];
     this.wobble = wobble;
+  }
+
+  /** Tirets posés dans le même lot de traits (pas de matériau en plus). */
+  dashed(w, a, b, { dash = 0.45, gap = 0.3 } = {}) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (!L) return;
+    for (let s = 0; s < L; s += dash + gap) {
+      this.seg(w, lerp3(a, b, s / L), lerp3(a, b, Math.min(s + dash, L) / L));
+    }
+  }
+
+  /** Trait mixte d'axe : long tiret, point. */
+  axis(w, a, b, { dash = 1.6, gap = 0.28, dot = 0.12 } = {}) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (!L) return;
+    const P = (s) => lerp3(a, b, Math.min(s, L) / L);
+    for (let s = 0; s < L; s += dash + dot + 2 * gap) {
+      this.seg(w, P(s), P(s + dash));
+      if (s + dash + gap < L) this.seg(w, P(s + dash + gap), P(s + dash + gap + dot));
+    }
+  }
+
+  /**
+   * Volume plein invisible : il n'est jamais dessiné mais masque les
+   * traits situés derrière lui, comme un dessin en parties cachées.
+   * Il est rétréci de `inset` pour ne pas manger les traits posés
+   * sur ses faces.
+   */
+  solid([x, y, z], [dx, dy, dz], inset = 0.12) {
+    if (dx <= 2 * inset || dy <= 2 * inset || dz <= 2 * inset) return;
+    const g = new THREE.BoxGeometry(dx - 2 * inset, dy - 2 * inset, dz - 2 * inset);
+    g.translate(x + dx / 2, y + dy / 2, z + dz / 2);
+    this.solids.push(g);
+  }
+
+  /**
+   * Prisme masquant extrudé de `from` à `to` :
+   * axis "x" → profil [[z, y]…] ; "z" → profil [[x, y]…] ; "y" → emprise [[x, z]…].
+   */
+  solidPrism(profile, { axis = "x", from, to }) {
+    const shape = new THREE.Shape(profile.map(([u, v]) => new THREE.Vector2(u, v)));
+    const g = new THREE.ExtrudeGeometry(shape, { depth: to - from, bevelEnabled: false });
+    const m = new THREE.Matrix4();
+    if (axis === "x") m.set(0, 0, 1, from, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1);
+    else if (axis === "y") m.set(1, 0, 0, 0, 0, 0, 1, from, 0, 1, 0, 0, 0, 0, 0, 1);
+    else m.makeTranslation(0, 0, from);
+    g.applyMatrix4(m);
+    this.solids.push(g);
+  }
+
+  /** Volume masquant quelconque (dôme, tambour…), déjà positionné. */
+  solidGeo(geometry) {
+    this.solids.push(geometry);
+  }
+
+  /** Lettrage d'agence au trait (capitales, chiffres) sur un plan o + u, v. */
+  text(w, str, o, u, v, size = 0.5, { align = "start" } = {}) {
+    const sc = size / 6;
+    const adv = 5.6;
+    const total = (str.length * adv - 1.6) * sc;
+    const shift = align === "center" ? -total / 2 : align === "end" ? -total : 0;
+    [...String(str).toUpperCase()].forEach((ch, i) => {
+      const g = GLYPHS[ch];
+      if (!g) return;
+      for (const line of g) {
+        this.poly(
+          w,
+          line.map(([gx, gy]) => {
+            const a = shift + (i * adv + gx) * sc;
+            return add(add(o, mul(u, a)), mul(v, gy * sc));
+          })
+        );
+      }
+    });
   }
 
   _push(w, x1, y1, z1, x2, y2, z2) {
@@ -149,9 +227,166 @@ export class Pen {
       g.add(line);
       mats.push(mat);
     }
+    if (this.solids.length) {
+      const parts = this.solids.map((s) => {
+        const ni = s.index ? s.toNonIndexed() : s;
+        for (const k of Object.keys(ni.attributes)) if (k !== "position") ni.deleteAttribute(k);
+        return ni;
+      });
+      const occ = new THREE.Mesh(
+        mergeGeometries(parts),
+        new THREE.MeshBasicMaterial({
+          colorWrite: false,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: 2,
+          polygonOffsetUnits: 2,
+        })
+      );
+      occ.renderOrder = -1;
+      g.add(occ);
+      g.userData.occluder = occ;
+      this.solids.forEach((s) => s.dispose());
+    }
     g.userData.mats = mats;
     return g;
   }
+}
+
+/* ------------------------- lettrage au trait ------------------------- */
+/* Glyphes sur une grille 4 × 6, tracés comme au normographe. */
+const O = [[1, 0], [3, 0], [4, 1], [4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0]];
+const GLYPHS = {
+  " ": [],
+  0: [O],
+  1: [[[1, 5], [2, 6], [2, 0]], [[1, 0], [3, 0]]],
+  2: [[[0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [0, 0], [4, 0]]],
+  3: [[[0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [3, 3], [1.5, 3]], [[3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  4: [[[3, 0], [3, 6], [0, 2], [4, 2]]],
+  5: [[[4, 6], [0, 6], [0, 3.4], [3, 3.4], [4, 2.4], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  6: [[[3.6, 6], [1.6, 6], [0, 4], [0, 1], [1, 0], [3, 0], [4, 1], [4, 2.4], [3, 3.4], [0.4, 3.4]]],
+  7: [[[0, 6], [4, 6], [1.4, 0]]],
+  8: [[[1, 3], [0, 4], [0, 5], [1, 6], [3, 6], [4, 5], [4, 4], [3, 3], [1, 3], [0, 2], [0, 1], [1, 0], [3, 0], [4, 1], [4, 2], [3, 3]]],
+  9: [[[0.4, 0], [2.4, 0], [4, 2], [4, 5], [3, 6], [1, 6], [0, 5], [0, 3.6], [1, 2.6], [4, 2.6]]],
+  ".": [[[1.6, 0], [2.4, 0], [2.4, 0.7], [1.6, 0.7], [1.6, 0]]],
+  ",": [[[2.2, 0.7], [2.2, 0], [1.4, -0.9]]],
+  "+": [[[2, 1], [2, 5]], [[0, 3], [4, 3]]],
+  "-": [[[0.6, 3], [3.4, 3]]],
+  "/": [[[0, 0], [4, 6]]],
+  "°": [[[1.2, 6], [2.8, 6], [2.8, 4.4], [1.2, 4.4], [1.2, 6]]],
+  "²": [[[1, 6], [2, 6.6], [3, 6], [1, 4.4], [3, 4.4]]],
+  A: [[[0, 0], [2, 6], [4, 0]], [[0.7, 2], [3.3, 2]]],
+  B: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]], [[3, 3], [4, 2], [4, 1], [3, 0], [0, 0]]],
+  C: [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1]]],
+  D: [[[0, 0], [0, 6], [2.5, 6], [4, 4.5], [4, 1.5], [2.5, 0], [0, 0]]],
+  E: [[[4, 6], [0, 6], [0, 0], [4, 0]], [[0, 3], [3, 3]]],
+  F: [[[4, 6], [0, 6], [0, 0]], [[0, 3], [3, 3]]],
+  G: [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 1], [1, 0], [3, 0], [4, 1], [4, 3], [2, 3]]],
+  H: [[[0, 0], [0, 6]], [[4, 0], [4, 6]], [[0, 3], [4, 3]]],
+  I: [[[2, 0], [2, 6]], [[1, 0], [3, 0]], [[1, 6], [3, 6]]],
+  J: [[[4, 6], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  K: [[[0, 0], [0, 6]], [[4, 6], [0, 2.4]], [[1.3, 3.5], [4, 0]]],
+  L: [[[0, 6], [0, 0], [4, 0]]],
+  M: [[[0, 0], [0, 6], [2, 3], [4, 6], [4, 0]]],
+  N: [[[0, 0], [0, 6], [4, 0], [4, 6]]],
+  O: [O],
+  P: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]]],
+  Q: [O, [[2.6, 1.6], [4.2, -0.4]]],
+  R: [[[0, 0], [0, 6], [3, 6], [4, 5], [4, 4], [3, 3], [0, 3]], [[2, 3], [4, 0]]],
+  S: [[[4, 5], [3, 6], [1, 6], [0, 5], [0, 4], [1, 3], [3, 3], [4, 2], [4, 1], [3, 0], [1, 0], [0, 1]]],
+  T: [[[0, 6], [4, 6]], [[2, 6], [2, 0]]],
+  U: [[[0, 6], [0, 1], [1, 0], [3, 0], [4, 1], [4, 6]]],
+  V: [[[0, 6], [2, 0], [4, 6]]],
+  W: [[[0, 6], [1, 0], [2, 4], [3, 0], [4, 6]]],
+  X: [[[0, 0], [4, 6]], [[0, 6], [4, 0]]],
+  Y: [[[0, 6], [2, 3], [4, 6]], [[2, 3], [2, 0]]],
+  Z: [[[0, 6], [4, 6], [0, 0], [4, 0]]],
+};
+GLYPHS["É"] = GLYPHS.E;
+GLYPHS["È"] = GLYPHS.E;
+
+/* ===================== conventions de dessin ===================== */
+
+const FLAT_U = [1, 0, 0];
+const FLAT_V = [0, 0, -1];
+
+/**
+ * Chaîne de cotes horizontale, posée au sol.
+ * along : "x" (cotes le long de x, ligne à z = at) ou "z".
+ * ticks : positions successives ; from : nu du bâtiment (amorces).
+ */
+export function dimChain(pen, ticks, { along = "x", at, from = at, y = 0.03, size = 0.42, labels = true } = {}) {
+  const P = (s, q) => (along === "x" ? [s, y, q] : [q, y, s]);
+  const dir = Math.sign(at - from) || 1;
+  pen.seg("faint", P(ticks[0] - 0.4, at), P(ticks[ticks.length - 1] + 0.4, at));
+  for (const s of ticks) {
+    pen.seg("hair", P(s, from + dir * 0.25), P(s, at + dir * 0.35));
+    pen.seg("medium", P(s - 0.16, at - 0.16 * dir), P(s + 0.16, at + 0.16 * dir));
+  }
+  if (!labels) return;
+  for (let i = 0; i < ticks.length - 1; i++) {
+    const mid = (ticks[i] + ticks[i + 1]) / 2;
+    const len = Math.abs(ticks[i + 1] - ticks[i]);
+    if (len < size * 3) continue;
+    const txt = len.toFixed(2);
+    const base = at - dir * 0.2 + (dir < 0 ? size : 0);
+    if (along === "x") pen.text("hair", txt, [mid, y, base], FLAT_U, FLAT_V, size, { align: "center" });
+    else pen.text("hair", txt, [base, y, mid], [0, 0, -1], [-1, 0, 0], size, { align: "center" });
+  }
+}
+
+/** Axes de trame structurelle : trait mixte + bulle repérée. */
+export function gridAxes(pen, { xs = [], zs = [], x0, x1, z0, z1, y = 0.02, ext = 2.4, r = 0.55, xLabels, zLabels }) {
+  xs.forEach((x, i) => {
+    pen.axis("hair", [x, y, z0 - ext + r], [x, y, z1 + 0.6]);
+    const c = [x, y, z0 - ext];
+    pen.circle("faint", c, r, { n: 18 });
+    const lab = xLabels ? xLabels[i] : String(i + 1);
+    pen.text("faint", lab, [x, y, z0 - ext + r * 0.45], FLAT_U, FLAT_V, r * 0.95, { align: "center" });
+  });
+  zs.forEach((z, i) => {
+    pen.axis("hair", [x0 - ext + r, y, z], [x1 + 0.6, y, z]);
+    const c = [x0 - ext, y, z];
+    pen.circle("faint", c, r, { n: 18 });
+    const lab = zLabels ? zLabels[i] : String.fromCharCode(65 + i);
+    pen.text("faint", lab, [x0 - ext, y, z + r * 0.45], FLAT_U, FLAT_V, r * 0.95, { align: "center" });
+  });
+}
+
+/**
+ * Repère de niveau en élévation (plan vertical z = const) :
+ * triangle pointé sur le niveau, trait d'attache, cote « +3.40 ».
+ */
+export function levelMark(pen, [x, y, z], label, { len = 2.2, size = 0.38, dir = 1 } = {}) {
+  pen.seg("medium", [x, y, z], [x + dir * len, y, z]);
+  const tx = x + dir * len * 0.35;
+  pen.poly("medium", [[tx, y, z], [tx - 0.22, y + 0.34, z], [tx + 0.22, y + 0.34, z], [tx, y, z]]);
+  pen.text("faint", label, [tx + dir * 0.35, y + 0.12, z], [dir, 0, 0], [0, 1, 0], size, { align: dir > 0 ? "start" : "end" });
+}
+
+/**
+ * Isolant en coupe (convention « ressort ») dans une bande o + u (longueur)
+ * et v (épaisseur).
+ */
+export function insulation(pen, o, u, v, { w = "faint", step } = {}) {
+  const L = Math.hypot(...u);
+  const T = Math.hypot(...v);
+  const st = step || T * 0.7;
+  const n = Math.max(2, Math.round(L / st));
+  const pts = [];
+  for (let i = 0; i <= n * 8; i++) {
+    const t = i / (n * 8);
+    const ph = t * n * Math.PI * 2;
+    const a = t + (Math.sin(ph) * 0.35) / n;
+    const b = 0.5 - Math.cos(ph) * 0.45;
+    pts.push(add(add(o, mul(u, Math.min(Math.max(a, 0), 1))), mul(v, b)));
+  }
+  pen.poly(w, pts);
+}
+
+/** Terre en coupe : hachure oblique coupée de petits traits croisés. */
+export function earth(pen, o, u, v, n = 14) {
+  pen.hatch("hair", o, add(mul(u, 0.06), v), [u[0], u[1], u[2]], n);
 }
 
 /* ================== vocabulaire d'architecture ================== */
@@ -179,6 +414,29 @@ export function windowOn(pen, o, u, v, { mullion = true, transom = true, rail = 
       pen.seg("faint", add(o, mul(u, t)), add(add(o, mul(u, t)), mul(v, 0.3)));
     }
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Baie de façade : nu, tableaux (épaisseur du mur), menuiserie en     */
+/* retrait, appui saillant, coffre de volet roulant.                   */
+/* f = { o, u, n } : origine, direction du linéaire, normale sortante. */
+/* ------------------------------------------------------------------ */
+export function bay(pen, f, s, y, w, h, { kind = "window", depth = 0.24, rail = 0, coffre = true } = {}) {
+  const P = (ds, dy, dn) => add(add(add(f.o, mul(f.u, s + ds)), [0, y + dy, 0]), mul(f.n, dn));
+  const U = mul(f.u, w);
+  pen.rect("strong", P(0, 0, 0.012), U, [0, h, 0]);
+  for (const [ds, dy] of [[0, 0], [w, 0], [0, h], [w, h]]) pen.seg("faint", P(ds, dy, 0.012), P(ds, dy, -depth));
+  const back = P(0, 0, -depth);
+  if (kind === "door") {
+    pen.rect("medium", back, U, [0, h, 0]);
+    pen.rect("faint", P(0.12, 0.12, -depth), mul(f.u, w - 0.24), [0, h - 0.62, 0]);
+    pen.seg("faint", P(0, h - 0.42, -depth), P(w, h - 0.42, -depth));
+    pen.seg("medium", P(w - 0.16, 1.0, -depth + 0.02), P(w - 0.16, 1.14, -depth + 0.02));
+  } else {
+    windowOn(pen, back, U, [0, h, 0], { mullion: w > 1.1, transom: kind === "french", rail, inset: 0.07 });
+  }
+  if (kind === "window") pen.rect("faint", P(-0.05, -0.04, 0.07), mul(f.u, w + 0.1), mul(f.n, -0.3));
+  if (coffre) pen.seg("hair", P(0, h + 0.24, 0.012), P(w, h + 0.24, 0.012));
 }
 
 /** Balustrade le long d'un segment a→b (lisse + poteaux serrés). */

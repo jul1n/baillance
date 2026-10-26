@@ -34,14 +34,32 @@ npm run preview    # prévisualisation du build
 
 ## Les maquettes 3D (`src/three`)
 
-Chaque « croquis » est un **véritable modèle 3D** de milliers de traits, dans l'esprit des
-axonométries d'architecte : trames de fenêtres, garde-corps barreaudés, corniches, mansardes
-hachurées, lucarnes, cheminées, mobilier, végétation, personnages d'échelle.
+Chaque « croquis » est un **véritable modèle 3D** de 6 000 à 12 000 traits, dessiné comme une
+planche d'architecte : axonométries écorchées (dernier niveau coupé à 1,20 m pour lire le
+plan) et coupes perspectives. Les traits situés derrière les volumes sont masqués (dessin en
+parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
 
-- `lineKit.js` — le « crayon 3D » : trois poids de trait (fort / moyen / estompé), léger
-  tremblé déterministe des sommets, hachures, courbes en tirets, et vocabulaire
-  d'architecture réutilisable (fenêtres, balustrades, arbres, silhouettes…).
-- `models/*.js` — les cinq planches, générées procéduralement.
+- `lineKit.js` — le « crayon 3D » : quatre poids de trait (fort / moyen / estompé / fin),
+  léger tremblé déterministe, hachures, tirets et traits d'axe, lettrage au normographe,
+  cotes, trame structurelle repérée, repères de niveau, isolant en coupe, volumes masquants,
+  et vocabulaire d'architecture (baies avec tableaux, balustrades, arbres, silhouettes…).
+- `planKit.js` — le plan d'étage : repère local (quarts de tour, symétrie), murs coupés et
+  pochés, cloisons, portes et leur débattement, portes-fenêtres, mobilier (lits, séjour,
+  cuisines, salles d'eau, rangements, bureaux), escalier à deux volées, ascenseur, gaines,
+  poteaux, et un T4 traversant paramétrable réutilisé d'une planche à l'autre.
+- `sectionKit.js` — la coupe : béton poché, isolant, terre, planchers en couches (parquet,
+  chape, résilient, dalle, faux plafond), murs en couches, cotes verticales.
+- `models/*.js` — les cinq planches, générées procéduralement :
+  - **logement social** : barre R+4 écorchée, trois T4 traversants (deux en miroir autour
+    d'une gaine commune), coursive au nord, tour d'escalier, toiture partagée sur l'aile basse ;
+  - **transformation tertiaire** : dernier niveau écorché, plateau de bureaux (trame 7,20,
+    noyau, faux plancher, postes de travail) à l'ouest, deux T4 dans la même trame à l'est ;
+  - **urbanisme et mixité** : îlot haussmannien en gradins — boulangerie, cabinet, logements
+    se lisent niveau par niveau, chaque ressaut étant une coupe ;
+  - **logement de qualité** : coupe perspective d'une maison de ville traversante sur trois
+    niveaux, planchers acoustiques, loggias, escalier à deux volées ;
+  - **adaptation au climat** : coupe bioclimatique, pisé, double hauteur et lanterneau,
+    brise-soleil, angles solaires de 65° et 20°, puits canadien, noue, cuve.
 - `LineScene.jsx` — rendu Three.js (caméra orthographique axonométrique, fond transparent)
   animé par **GSAP** : rotation continue réelle du modèle (turntable), parallaxe souris
   amortie, transitions entre modèles avec « mise en traits » (les lignes de construction
@@ -52,8 +70,8 @@ hachurées, lucarnes, cheminées, mobilier, végétation, personnages d'échelle
 
 | Thématique | Fond | Planche 3D |
 | --- | --- | --- |
-| Logement social | Rouge terracotta | Axonométrie de deux volumes en L : balcons plantés, hall traversant, toiture partagée |
-| Transformation tertiaire | Bleu nuit | Plateau de bureaux en mutation : façade rideau, balcons greffés, grue en treillis |
-| Urbanisme et mixité | Vert sauge | Îlot haussmannien d'angle : mansardes, dôme, tram, vélos, terrasse, canopée |
-| Logement de qualité | Beige chaud | Coupe habitée sur trois niveaux : escalier balancé, grande baie, mobilier |
+| Logement social | Rouge terracotta | Axonométrie écorchée : T4 traversants meublés, coursive, tour d'escalier, toiture partagée |
+| Transformation tertiaire | Bleu nuit | Dernier niveau écorché : bureaux d'un côté, logements de l'autre, grue en treillis |
+| Urbanisme et mixité | Vert sauge | Îlot haussmannien en gradins : commerce, cabinet, logements ; dôme, tram, canopée |
+| Logement de qualité | Beige chaud | Coupe perspective : maison de ville, planchers acoustiques, loggias, escalier |
 | Adaptation au changement climatique | Gris perle | Coupe bioclimatique : brise-soleil, flux d'air, course du soleil été/hiver |

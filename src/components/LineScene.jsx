@@ -101,6 +101,7 @@ export default function LineScene({
         el: m.el ?? 0.62,
         pivot,
         mats: inner.userData.mats || [],
+        occluder: inner.userData.occluder || null,
       };
       scene.add(wrap);
       S.entries[m.id] = wrap;
@@ -122,11 +123,12 @@ export default function LineScene({
     ro.observe(host);
     resize();
 
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
     let raf = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const dt = Math.min(clock.getDelta(), 0.05);
+      timer.update();
+      const dt = Math.min(timer.getDelta(), 0.05);
       if (!S.visible) return;
       const wrap = S.entries[S.currentId];
       if (wrap) {
@@ -199,7 +201,8 @@ export default function LineScene({
       const wrap = S.entries[id];
       if (!wrap) return;
       wrap.visible = true;
-      const { mats, pivot } = wrap.userData;
+      const { mats, pivot, occluder } = wrap.userData;
+      if (occluder) occluder.visible = true;
       gsap.killTweensOf([pivot.rotation, pivot.scale, ...mats]);
       gsap.to(S.rig, { el: wrap.userData.el, duration: 1.4, ease: "power2.inOut" });
       const sorted = [...mats].sort(
@@ -229,7 +232,9 @@ export default function LineScene({
     S.runOutro = (id) => {
       const wrap = S.entries[id];
       if (!wrap) return;
-      const { mats, pivot } = wrap.userData;
+      const { mats, pivot, occluder } = wrap.userData;
+      // le modèle sortant ne doit pas masquer les traits de l'entrant
+      if (occluder) occluder.visible = false;
       gsap.killTweensOf([pivot.rotation, pivot.scale, ...mats]);
       mats.forEach((mat) => {
         gsap.to(mat, { opacity: 0, duration: 0.3, ease: "power1.in" });
@@ -259,11 +264,12 @@ export default function LineScene({
       if (onMove) window.removeEventListener("mousemove", onMove);
       if (st) st.kill();
       for (const wrap of Object.values(S.entries)) {
-        for (const child of wrap.userData.pivot.children[0]?.children ?? []) {
-          child.geometry?.dispose();
-        }
-        wrap.userData.mats.forEach((m) => m.dispose());
+        wrap.traverse((o) => {
+          o.geometry?.dispose();
+          o.material?.dispose();
+        });
       }
+      timer.dispose();
       renderer.dispose();
       host.contains(renderer.domElement) && host.removeChild(renderer.domElement);
       S.entries = {};
