@@ -34,14 +34,15 @@ npm run preview    # prévisualisation du build
 
 ## Les maquettes 3D (`src/three`)
 
-Chaque « croquis » est un **véritable modèle 3D** de 6 000 à 12 000 traits, dessiné comme une
+Chaque « croquis » est un **véritable modèle 3D** de 6 000 à 15 000 traits, dessiné comme une
 planche d'architecte : axonométries écorchées (dernier niveau coupé à 1,20 m pour lire le
 plan) et coupes perspectives. Les traits situés derrière les volumes sont masqués (dessin en
 parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
 
 - `lineKit.js` — le « crayon 3D » : quatre poids de trait (fort / moyen / estompé / fin),
-  léger tremblé déterministe, hachures, tirets et traits d'axe, lettrage au normographe,
-  cotes, trame structurelle repérée, repères de niveau, isolant en coupe, volumes masquants,
+  léger tremblé déterministe, hachures, tirets et traits d'axe, lettrage au normographe
+  (chaque inscription se retourne sur elle-même selon le point de vue, pour ne jamais se lire
+  en miroir ni tête-bêche quand la maquette tourne), cotes, trame structurelle repérée, repères de niveau, isolant en coupe, volumes masquants,
   et vocabulaire d'architecture (baies avec tableaux, balustrades, arbres, silhouettes…).
 - `planKit.js` — le plan d'étage : repère local (quarts de tour, symétrie), murs coupés et
   pochés, cloisons, portes et leur débattement, portes-fenêtres, mobilier (lits, séjour,
@@ -57,18 +58,20 @@ parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
   - **urbanisme et mixité** : îlot haussmannien en gradins — boulangerie, cabinet, logements
     se lisent niveau par niveau, chaque ressaut étant une coupe ;
   - **logement de qualité** : axonométrie éclatée d'un duplex traversant — séjour en double
-    hauteur, bibliothèque, piano, loggia de 2 m, suite parentale, bureau en mezzanine —, rives
-    des planchers en coupe et « carotte » éclatée du plancher acoustique, présentée de face
-    et balancée doucement ;
-  - **adaptation au climat** : coupe sur une travée d'un immeuble bioclimatique R+3, présentée
-    de face et balancée doucement : quatre niveaux meublés, façade nord en fibre de bois,
-    dalles apparentes, cheminée de ventilation, jardins d'hiver, brise-soleil, photovoltaïque,
-    angles solaires de 65° et 20°, flux d'air, puits canadien, noue, cuve, annotations.
+    hauteur, bibliothèque, piano, loggia de 2 m, suite parentale, bureau en mezzanine —, murs
+    coupés à 0,95 m sur tout le pourtour pour se lire de tous les côtés, rives des planchers en
+    coupe et « carotte » éclatée du plancher acoustique posée au pied de la maquette ;
+  - **adaptation au climat** : immeuble bioclimatique R+3 de trois travées, coupé sur la
+    première (quatre niveaux meublés, façade nord en fibre de bois, dalles apparentes, cheminée
+    de ventilation, angles solaires de 65° et 20°, flux d'air) et complet ailleurs : façade nord
+    bardée à persiennes, hall sous auvent et rampe, jardins d'hiver et brise-soleil au sud,
+    pignon à treille végétale, toiture plantée et photovoltaïque, socle de terrain avec noue,
+    puits canadien et cuve.
 - `LineScene.jsx` — rendu Three.js (caméra orthographique axonométrique, fond transparent)
-  animé par **GSAP** : rotation continue réelle du modèle (turntable) — ou, pour les planches
-  qui n'ont qu'une face lisible (coupe, axonométrie éclatée), balancement borné à ±43° autour
-  de la vue principale, y compris au glisser —, parallaxe souris amortie, transitions entre modèles avec « mise en traits » (les lignes de construction
-  montent avant les traits forts), bascule d'élévation de caméra propre à chaque planche,
+  animé par **GSAP** : rotation continue réelle du modèle (turntable), que l'on peut aussi
+  faire tourner au glisser, chaque planche entrant par sa vue principale ; inscriptions
+  réorientées à chaque image ; parallaxe souris amortie, transitions entre modèles avec
+  « mise en traits » (les lignes de construction montent avant les traits forts), bascule d'élévation de caméra propre à chaque planche,
   et rotation liée au scroll via ScrollTrigger dans les sections.
 - `SheetOverlay.jsx` — l'habillage de planche par-dessus la 3D : cadre de feuille,
   annotations manuscrites, cartouche « BAILLANCE », rose du nord.
@@ -79,4 +82,4 @@ parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
 | Transformation tertiaire | Bleu nuit | Dernier niveau écorché : bureaux d'un côté, logements de l'autre, grue en treillis |
 | Urbanisme et mixité | Vert sauge | Îlot haussmannien en gradins : commerce, cabinet, logements ; dôme, tram, canopée |
 | Logement de qualité | Beige chaud | Axonométrie éclatée d'un duplex : double hauteur, mezzanine, plancher acoustique |
-| Adaptation au changement climatique | Gris perle | Coupe sur une travée : jardins d'hiver, cheminée de ventilation, cycles du soleil, de l'air et de l'eau |
+| Adaptation au changement climatique | Gris perle | Immeuble bioclimatique coupé sur une travée : jardins d'hiver, cheminées de ventilation, pignon végétalisé, cycles du soleil, de l'air et de l'eau |

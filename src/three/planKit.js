@@ -129,7 +129,7 @@ export class Local {
     this.pen.solid(lo, [Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2])], inset);
   }
 
-  /** Étiquette posée au sol, toujours lisible depuis le sud-ouest. */
+  /** Étiquette posée au sol (retournée à l'affichage pour rester lisible). */
   label(w, str, [x, y, z], size = 0.42) {
     this.pen.text(w, str, this.P(x, y, z), [1, 0, 0], [0, 0, -1], size, { align: "center" });
   }

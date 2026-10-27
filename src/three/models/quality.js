@@ -7,8 +7,8 @@ import {
 /**
  * LOGEMENT DE QUALITÉ — axonométrie éclatée d'un duplex traversant.
  * Les deux niveaux sont décollés (tracés de rappel en tirets) pour lire
- * chaque plan coupé à 1,15 m (0,50 m pour les murs côté observateur) ;
- * ce qui est au-dessus est rappelé en tirets
+ * chaque plan, coupé à 0,95 m sur tout son pourtour pour se lire de
+ * n'importe quel côté ; ce qui est au-dessus est rappelé en tirets
  * (trémie de la double hauteur, meubles hauts, suspensions, verrière) :
  *  - niveau bas : entrée, cuisine ouverte, séjour en double hauteur
  *    (5,70 m) bordé d'une bibliothèque, coin piano, loggia profonde ;
@@ -27,8 +27,7 @@ const ZN = -5.0;
 const ZS = 5.0;
 const LZ = 7.0;
 const UP = 6.0;
-const H = 1.15;
-const HF = 0.5;
+const H = 0.95;
 const PT = 0.48;
 const VX = 0.6;
 const VZ = 0.8;
@@ -116,10 +115,10 @@ function tiles(L, x0, x1, z0, z1, step = 0.3) {
 /* ------------------------- la carotte de plancher ------------------------- */
 
 function core(pen) {
-  const x0 = -10.6;
-  const x1 = -9.2;
-  const z0 = -4.0;
-  const z1 = -2.6;
+  const x0 = -8.4;
+  const x1 = -7.0;
+  const z0 = -7.2;
+  const z1 = -5.8;
   const layers = [
     ["PARQUET CHENE", 0.07, "parquet"],
     ["CHAPE FLOTTANTE", 0.17, "chape"],
@@ -128,7 +127,7 @@ function core(pen) {
     ["PLENUM", 0.32, "plenum"],
     ["FAUX PLAFOND", 0.05, "fp"],
   ];
-  let y = 7.4;
+  let y = 3.6;
   for (const [name, t, kind] of layers) {
     const yb = y - t;
     if (kind === "plenum") {
@@ -157,8 +156,8 @@ function core(pen) {
     pen.text("faint", name, [x0 - 0.01, ym, z0 - 0.55], [0, 0, 1], [0, 1, 0], 0.22, { align: "end" });
     y = yb - 0.3;
   }
-  pen.text("medium", "PLANCHER ACOUSTIQUE", [x0 - 0.01, 7.9, z1], [0, 0, 1], [0, 1, 0], 0.26, { align: "end" });
-  pen.seg("faint", [x0 - 0.01, 7.8, z1], [x0 - 0.01, 7.8, z1 - 4.4]);
+  pen.text("medium", "PLANCHER ACOUSTIQUE", [x0 - 0.01, 4.1, z1], [0, 0, 1], [0, 1, 0], 0.26, { align: "end" });
+  pen.seg("faint", [x0 - 0.01, 4.0, z1], [x0 - 0.01, 4.0, z1 - 4.4]);
 }
 
 export function buildQuality(ink) {
@@ -189,17 +188,17 @@ export function buildQuality(ink) {
 
   /* ============================== NIVEAU BAS ============================== */
   const lo = new Local(pen, { x: 0, y: 0, z: 0 });
-  lo.wall(-5.525, ZN, -5.525, LZ, { t: 0.25, h: HF, poche: true, solid: true });
+  lo.wall(-5.525, ZN, -5.525, LZ, { t: 0.25, h: H, poche: true, solid: true });
   lo.wall(5.525, ZN, 5.525, LZ, { t: 0.25, h: H, poche: true, solid: true });
   lo.wall(XI0, -4.85, XI1, -4.85, {
     t: 0.3, h: H, poche: true, solid: true, ite: -1,
     openings: [
-      { at: 1.1, w: 1.8, kind: "window", sill: 1.05, inside: 1 },
+      { at: 1.1, w: 1.8, kind: "window", sill: 0.88, inside: 1 },
       { at: 8.1, w: 1.0, kind: "door", side: 1, hinge: "b" },
     ],
   });
   lo.wall(XI0, 4.85, XI1, 4.85, {
-    t: 0.3, h: HF, poche: true, solid: true, ite: 1,
+    t: 0.3, h: H, poche: true, solid: true, ite: 1,
     openings: [
       { at: 0.5, w: 4.2, kind: "baie" },
       { at: 5.6, w: 1.6, kind: "french", inside: -1 },
@@ -310,18 +309,18 @@ export function buildQuality(ink) {
 
   /* ============================== NIVEAU HAUT ============================== */
   const up = new Local(pen, { x: 0, y: UP, z: 0 });
-  up.wall(-5.525, ZN, -5.525, VZ, { t: 0.25, h: HF, poche: true, solid: true });
+  up.wall(-5.525, ZN, -5.525, VZ, { t: 0.25, h: H, poche: true, solid: true });
   up.wall(5.525, ZN, 5.525, 6.3, { t: 0.25, h: H, poche: true, solid: true });
   up.wall(XI0, -4.85, XI1, -4.85, {
     t: 0.3, h: H, poche: true, solid: true, ite: -1,
     openings: [
-      { at: 1.1, w: 1.6, kind: "window", sill: 0.95, inside: 1 },
-      { at: 4.8, w: 1.2, kind: "window", sill: 1.05, inside: 1 },
-      { at: 7.5, w: 1.4, kind: "window", sill: 0.95, inside: 1 },
+      { at: 1.1, w: 1.6, kind: "window", sill: 0.5, inside: 1 },
+      { at: 4.8, w: 1.2, kind: "window", sill: 0.88, inside: 1 },
+      { at: 7.5, w: 1.4, kind: "window", sill: 0.5, inside: 1 },
     ],
   });
   up.wall(VX, 4.85, XI1, 4.85, {
-    t: 0.3, h: HF, poche: true, solid: true, ite: 1,
+    t: 0.3, h: H, poche: true, solid: true, ite: 1,
     openings: [
       { at: 0.15, w: 1.25, kind: "window", sill: 0.5, inside: -1 },
       { at: 2.1, w: 2.0, kind: "baie" },

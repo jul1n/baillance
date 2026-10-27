@@ -26,6 +26,7 @@ export class Pen {
     this.buf = { strong: [], medium: [], faint: [], hair: [] };
     this.dashes = [];
     this.solids = [];
+    this.labels = [];
     this.wobble = wobble;
   }
 
@@ -82,33 +83,43 @@ export class Pen {
     this.solids.push(geometry);
   }
 
-  /** Lettrage d'agence au trait (capitales, chiffres) sur un plan o + u, v. */
+  /**
+   * Lettrage d'agence au trait (capitales, chiffres) sur un plan o + u, v.
+   * Chaque inscription garde son centre et son repère : `orientLabels` la
+   * retourne sur elle-même pour qu'elle ne se lise jamais en miroir ni à
+   * l'envers, de quelque côté que l'on regarde la maquette.
+   */
   text(w, str, o, u, v, size = 0.5, { align = "start" } = {}) {
     const sc = size / 6;
     const adv = 5.6;
     const total = (str.length * adv - 1.6) * sc;
     const shift = align === "center" ? -total / 2 : align === "end" ? -total : 0;
+    const at = (a, b) => add(add(o, mul(u, a)), mul(v, b));
+    const pos = [];
     [...String(str).toUpperCase()].forEach((ch, i) => {
       const g = GLYPHS[ch];
       if (!g) return;
       for (const line of g) {
-        this.poly(
-          w,
-          line.map(([gx, gy]) => {
-            const a = shift + (i * adv + gx) * sc;
-            return add(add(o, mul(u, a)), mul(v, gy * sc));
-          })
-        );
+        for (let k = 0; k < line.length - 1; k++) {
+          const p = at(shift + (i * adv + line[k][0]) * sc, line[k][1] * sc);
+          const q = at(shift + (i * adv + line[k + 1][0]) * sc, line[k + 1][1] * sc);
+          this._emit(pos, p[0], p[1], p[2], q[0], q[1], q[2]);
+        }
       }
     });
+    if (pos.length) this.labels.push({ w, pos, c: at(shift + total / 2, 3 * sc), u, v });
   }
 
-  _push(w, x1, y1, z1, x2, y2, z2) {
+  _emit(arr, x1, y1, z1, x2, y2, z2) {
     const k = this.wobble;
-    this.buf[w].push(
+    arr.push(
       x1 + jit(x1, y1, z1, k), y1 + jit(y1, z1, x1, k), z1 + jit(z1, x1, y1, k),
       x2 + jit(x2, y2, z2, k), y2 + jit(y2, z2, x2, k), z2 + jit(z2, x2, y2, k)
     );
+  }
+
+  _push(w, x1, y1, z1, x2, y2, z2) {
+    this._emit(this.buf[w], x1, y1, z1, x2, y2, z2);
   }
 
   seg(w, a, b) {
@@ -202,15 +213,26 @@ export class Pen {
   build(ink) {
     const g = new THREE.Group();
     const mats = [];
+    const labels = [];
     for (const k of Object.keys(this.buf)) {
-      if (!this.buf[k].length) continue;
+      const arr = this.buf[k];
+      const own = this.labels.filter((l) => l.w === k);
+      if (!arr.length && !own.length) continue;
+      const placed = own.map((l) => {
+        const start = arr.length;
+        for (const x of l.pos) arr.push(x);
+        return { l, start };
+      });
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(this.buf[k], 3));
+      const attr = new THREE.Float32BufferAttribute(arr, 3);
+      geo.setAttribute("position", attr);
+      for (const { l, start } of placed) labels.push(labelRecord(l, attr, start));
       const mat = new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: WEIGHTS[k] });
       mat.userData.baseOpacity = WEIGHTS[k];
       g.add(new THREE.LineSegments(geo, mat));
       mats.push(mat);
     }
+    g.userData.labels = labels;
     for (const d of this.dashes) {
       const c = new THREE.CatmullRomCurve3(d.pts.map((p) => new THREE.Vector3(...p)));
       const geo = new THREE.BufferGeometry().setFromPoints(c.getPoints(d.div));
@@ -251,6 +273,79 @@ export class Pen {
     g.userData.mats = mats;
     return g;
   }
+}
+
+/* --------------------- inscriptions toujours lisibles --------------------- */
+
+/* Une inscription : sa plage de sommets, ses traits rapportés au centre,
+   son repère (largeur, hauteur, normale) et son retournement courant. */
+function labelRecord({ pos, c, u, v }, attr, start) {
+  const U = new THREE.Vector3(...u).normalize();
+  const V = new THREE.Vector3(...v).normalize();
+  const rel = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length; i += 3) {
+    rel[i] = pos[i] - c[0];
+    rel[i + 1] = pos[i + 1] - c[1];
+    rel[i + 2] = pos[i + 2] - c[2];
+  }
+  return { attr, start, rel, c, axes: [null, V, new THREE.Vector3().crossVectors(U, V), U], U, V, state: 0 };
+}
+
+/* Demi-tour de l'inscription autour de l'un de ses axes, passant par son centre :
+   1 → autour de sa hauteur (vue de dos), 2 → dans son plan (vue tête-bêche),
+   3 → autour de sa largeur. */
+function turnLabel(l) {
+  const a = l.attr.array;
+  const k = l.axes[l.state];
+  for (let i = 0; i < l.rel.length; i += 3) {
+    let x = l.rel[i];
+    let y = l.rel[i + 1];
+    let z = l.rel[i + 2];
+    if (k) {
+      const d = 2 * (k.x * x + k.y * y + k.z * z);
+      x = d * k.x - x;
+      y = d * k.y - y;
+      z = d * k.z - z;
+    }
+    a[l.start + i] = l.c[0] + x;
+    a[l.start + i + 1] = l.c[1] + y;
+    a[l.start + i + 2] = l.c[2] + z;
+  }
+}
+
+const _q = new THREE.Quaternion();
+const _right = new THREE.Vector3();
+const _up = new THREE.Vector3();
+
+/**
+ * Retourne les inscriptions d'une maquette selon le point de vue : une
+ * inscription vue de dos fait demi-tour sur sa hauteur, une inscription
+ * au sol vue tête-bêche fait demi-tour dans son plan. Un léger seuil évite
+ * qu'elle hésite quand elle se présente de profil.
+ */
+export function orientLabels(group, camera) {
+  const labels = group.userData.labels;
+  if (!labels || !labels.length) return;
+  group.getWorldQuaternion(_q).invert();
+  _right.set(1, 0, 0).applyQuaternion(camera.quaternion).applyQuaternion(_q);
+  _up.set(0, 1, 0).applyQuaternion(camera.quaternion).applyQuaternion(_q);
+  const dirty = new Set();
+  for (const l of labels) {
+    const ux = l.U.dot(_right);
+    const uy = l.U.dot(_up);
+    const vx = l.V.dot(_right);
+    const vy = l.V.dot(_up);
+    const front = ux * vy - uy * vx >= 0;
+    const [a, b] = front ? [0, 2] : [1, 3];
+    const score = front ? ux + vy : vy - ux;
+    let s = score >= 0 ? a : b;
+    if ((l.state === a || l.state === b) && Math.abs(score) < 0.2) s = l.state;
+    if (s === l.state) continue;
+    l.state = s;
+    turnLabel(l);
+    dirty.add(l.attr);
+  }
+  for (const attr of dirty) attr.needsUpdate = true;
 }
 
 /* ------------------------- lettrage au trait ------------------------- */
