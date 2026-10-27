@@ -5,6 +5,10 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
+/* Débattement maximal d'une planche « de face » autour de sa vue principale. */
+const SWAY_LIMIT = 0.75;
+const clampSpin = (u, v) => (u.sway ? Math.min(u.rot0 + SWAY_LIMIT, Math.max(u.rot0 - SWAY_LIMIT, v)) : v);
+
 /**
  * Scène filaire Three.js pilotée par GSAP.
  */
@@ -50,7 +54,7 @@ export default function LineScene({
     // On cible le modèle actuellement actif
     const wrap = S.entries[activeId];
     if (wrap) {
-      wrap.userData.spin += deltaX * 0.005 * spinDirection;
+      wrap.userData.spin = clampSpin(wrap.userData, wrap.userData.spin + deltaX * 0.005 * spinDirection);
     }
   };
 
@@ -99,6 +103,7 @@ export default function LineScene({
         /* une coupe se présente de face et se balance au lieu de tourner */
         spin: (m.rot0 ?? 0) + (m.sway ? 0 : (Math.random() - 0.5) * 0.6),
         sway: m.sway || 0,
+        rot0: m.rot0 ?? 0,
         h: size.y * k,
         el: m.el ?? 0.62,
         pivot,
@@ -137,8 +142,10 @@ export default function LineScene({
         if (!isDragging.current) {
           if (!wrap.userData.sway) wrap.userData.spin += dt * spinSpeed * spinDirection;
         }
-        const sway = wrap.userData.sway * Math.sin(timer.getElapsed() * 0.22);
-        wrap.rotation.y = wrap.userData.spin + sway + S.scrollRot;
+        const u = wrap.userData;
+        wrap.rotation.y = u.sway
+          ? clampSpin(u, u.spin + u.sway * Math.sin(timer.getElapsed() * 0.22) + S.scrollRot * 0.5)
+          : u.spin + S.scrollRot;
         rig.look = wrap.userData.h * lookHeight;
       }
       const az = rig.az + S.mouse.x * 0.17;

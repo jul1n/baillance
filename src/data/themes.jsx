@@ -89,6 +89,8 @@ export const THEMES = [
     build: () => buildQuality("#4A3520"),
     el: 0.6,
     scale: 0.72,
+    rot0: 0,
+    sway: 0.3,
     lede: "La qualité d'un logement se mesure autant par ce que l'on ressent que par ce que l'on calcule.",
     body: "Surface, performance énergétique, coût de construction, réglementation, industrialisation : les indicateurs se multiplient sans toujours traduire la qualité réelle d'un logement. Pourtant, lumière, proportions, acoustique, confort d'été ou générosité des espaces continuent de façonner silencieusement notre manière d'habiter.\n\nBaillance s'intéresse à cette qualité souvent difficile à mesurer mais immédiatement perceptible, en étudiant les projets qui replacent l'usage au cœur de la conception.",
     caption: "Axonométrie éclatée d'un duplex traversant — double hauteur, loggia, plancher acoustique.",

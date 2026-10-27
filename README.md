@@ -58,14 +58,16 @@ parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
     se lisent niveau par niveau, chaque ressaut étant une coupe ;
   - **logement de qualité** : axonométrie éclatée d'un duplex traversant — séjour en double
     hauteur, bibliothèque, piano, loggia de 2 m, suite parentale, bureau en mezzanine —, rives
-    des planchers en coupe et « carotte » éclatée du plancher acoustique ;
+    des planchers en coupe et « carotte » éclatée du plancher acoustique, présentée de face
+    et balancée doucement ;
   - **adaptation au climat** : coupe sur une travée d'un immeuble bioclimatique R+3, présentée
     de face et balancée doucement : quatre niveaux meublés, façade nord en fibre de bois,
     dalles apparentes, cheminée de ventilation, jardins d'hiver, brise-soleil, photovoltaïque,
     angles solaires de 65° et 20°, flux d'air, puits canadien, noue, cuve, annotations.
 - `LineScene.jsx` — rendu Three.js (caméra orthographique axonométrique, fond transparent)
-  animé par **GSAP** : rotation continue réelle du modèle (turntable), parallaxe souris
-  amortie, transitions entre modèles avec « mise en traits » (les lignes de construction
+  animé par **GSAP** : rotation continue réelle du modèle (turntable) — ou, pour les planches
+  qui n'ont qu'une face lisible (coupe, axonométrie éclatée), balancement borné à ±43° autour
+  de la vue principale, y compris au glisser —, parallaxe souris amortie, transitions entre modèles avec « mise en traits » (les lignes de construction
   montent avant les traits forts), bascule d'élévation de caméra propre à chaque planche,
   et rotation liée au scroll via ScrollTrigger dans les sections.
 - `SheetOverlay.jsx` — l'habillage de planche par-dessus la 3D : cadre de feuille,

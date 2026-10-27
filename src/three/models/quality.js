@@ -184,9 +184,6 @@ export function buildQuality(ink) {
     pen.dashed("hair", [x, 0, z], [x, UP - PT, z], { dash: 0.28, gap: 0.22 });
   }
   for (const x of [ST.x0, ST.x1]) pen.dashed("faint", [x, 3.0, ST.z1], [x, UP, ST.z1], { dash: 0.2, gap: 0.16 });
-  /* baie double hauteur du séjour, rappelée en tirets */
-  for (const x of [-4.9, -3.5, -2.1, -0.7]) pen.dashed("hair", [x, H, 4.86], [x, UP + 2.6, 4.86], { dash: 0.3, gap: 0.25 });
-  pen.dashed("faint", [-4.9, UP + 2.6, 4.86], [-0.7, UP + 2.6, 4.86], { dash: 0.3, gap: 0.25 });
   pen.text("hair", "DOUBLE HAUTEUR 5.70", [-2.4, UP + 0.02, 2.9], [1, 0, 0], [0, 0, -1], 0.34, { align: "center" });
   pen.rect("hair", [W0 + 0.25, UP - PT, VZ], [VX - W0 - 0.25, 0, 0], [0, 0, ZS - VZ - 0.15]);
 
