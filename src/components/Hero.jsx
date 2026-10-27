@@ -37,7 +37,7 @@ const TYPO = {
 };
 
 /* Les cinq maquettes filaires, construites une seule fois par la scène. */
-const HERO_MODELS = THEMES.map((t) => ({ id: t.id, build: t.build, el: t.el }));
+const HERO_MODELS = THEMES.map((t) => ({ id: t.id, build: t.build, el: t.el, rot0: t.rot0, sway: t.sway, scale: t.scale }));
 
 export default function Hero() {
   const [active, setActive] = useState(null);

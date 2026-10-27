@@ -361,7 +361,7 @@ export function levelMark(pen, [x, y, z], label, { len = 2.2, size = 0.38, dir =
   pen.seg("medium", [x, y, z], [x + dir * len, y, z]);
   const tx = x + dir * len * 0.35;
   pen.poly("medium", [[tx, y, z], [tx - 0.22, y + 0.34, z], [tx + 0.22, y + 0.34, z], [tx, y, z]]);
-  pen.text("faint", label, [tx + dir * 0.35, y + 0.12, z], [dir, 0, 0], [0, 1, 0], size, { align: dir > 0 ? "start" : "end" });
+  pen.text("faint", label, [tx + dir * 0.35, y + 0.12, z], [1, 0, 0], [0, 1, 0], size, { align: dir > 0 ? "start" : "end" });
 }
 
 /**
@@ -510,12 +510,18 @@ export function planterRow(pen, a, b, n, s = 1) {
 }
 
 /** Voiture non — Baillance préfère un vélo. */
-export function bike(pen, x, z, { face = 0 } = {}) {
+export function bike(pen, x, z, { face = 0, y = 0 } = {}) {
   const c = Math.cos(face);
   const s = Math.sin(face);
-  const P = (dx, dy) => [x + dx * c, dy, z + dx * s];
-  pen.circle("medium", P(-0.55, 0.33), 0.33, { axis: "z", n: 14 });
-  pen.circle("medium", P(0.55, 0.33), 0.33, { axis: "z", n: 14 });
+  const P = (dx, dy) => [x + dx * c, y + dy, z + dx * s];
+  for (const cx of [-0.55, 0.55]) {
+    const pts = [];
+    for (let i = 0; i <= 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      pts.push(P(cx + Math.cos(a) * 0.33, 0.33 + Math.sin(a) * 0.33));
+    }
+    pen.poly("medium", pts);
+  }
   pen.poly("medium", [P(-0.55, 0.33), P(-0.1, 0.85), P(0.42, 0.85), P(0.55, 0.33)]);
   pen.poly("medium", [P(-0.1, 0.85), P(0.18, 0.42), P(0.55, 0.33)]);
   pen.seg("medium", P(-0.62, 0.95), P(-0.48, 0.95));

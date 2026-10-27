@@ -1,4 +1,4 @@
-import { tuft } from "./lineKit.js";
+import { tuft, insulation } from "./lineKit.js";
 
 /* ------------------------------------------------------------------ */
 /*  Kit de plan : un repère local posé sur un niveau (translation,     */
@@ -36,7 +36,7 @@ function openingTop(o) {
   const kind = o.kind || "door";
   if (kind === "window") return (o.sill ?? 0.95) + 1.35;
   if (kind === "french") return 2.25;
-  if (kind === "void") return 2.3;
+  if (kind === "void" || kind === "baie") return 2.3;
   return 2.1;
 }
 
@@ -146,7 +146,7 @@ export class Local {
    *              side: ±1 (côté du débattement), inside: ±1, sill, double }]
    * `at` est la distance depuis a jusqu'au tableau de la baie.
    */
-  wall(ax, az, bx, bz, { t = 0.2, h = 1.2, poche = false, openings = [], base = true, w = "strong" } = {}) {
+  wall(ax, az, bx, bz, { t = 0.2, h = 1.2, poche = false, openings = [], base = true, w = "strong", solid = false, ite = 0, iteT = 0.12 } = {}) {
     const alongX = Math.abs(bz - az) < 1e-6;
     let [s0, s1] = alongX ? [ax, bx] : [az, bz];
     if (s1 < s0) [s0, s1] = [s1, s0];
@@ -173,14 +173,36 @@ export class Local {
         this.seg("hair", at(a0, -ht, 0), at(a1, -ht, 0));
         this.seg("hair", at(a0, ht, 0), at(a1, ht, 0));
       }
+      /* poché de la partie porteuse, isolant extérieur en « ressort » */
+      const qa = ite > 0 ? -ht : -ht + (ite < 0 ? iteT : 0);
+      const qb = ite > 0 ? ht - iteT : ht;
       if (poche && t >= 0.12) {
-        for (let s = a0 + 0.05; s + t <= a1; s += 0.13) this.seg("faint", at(s, -ht, h), at(s + t, ht, h));
+        const tb = qb - qa;
+        for (let s = a0 + 0.05; s + tb <= a1; s += 0.13) this.seg("faint", at(s, qa, h), at(s + tb, qb, h));
+      }
+      if (ite) {
+        const qi = ite > 0 ? ht - iteT : -ht;
+        this.seg("faint", at(a0, ite > 0 ? qb : qa, h), at(a1, ite > 0 ? qb : qa, h));
+        const o = this.P(...at(a0, qi, h + 0.005));
+        const ua = this.P(...at(a1, qi, h + 0.005));
+        const va = this.P(...at(a0, qi + iteT, h + 0.005));
+        insulation(this.pen, o, [ua[0] - o[0], ua[1] - o[1], ua[2] - o[2]], [va[0] - o[0], va[1] - o[1], va[2] - o[2]], { w: "hair", step: 0.16 });
+      }
+      if (solid) {
+        this.solid(alongX ? [a0, 0, q - ht] : [q - ht, 0, a0], alongX ? [a1 - a0, h, t] : [t, h, a1 - a0], 0.015);
       }
     }
     for (const o of ops) {
       this._opening(at, s0, o, t, h, base);
       /* en coupe, la baie est plus basse que le mur : linteau */
       const top = openingTop(o);
+      if (solid) {
+        const a = s0 + o.at;
+        const box = (y0, y1) => this.solid(alongX ? [a, y0, q - ht] : [q - ht, y0, a], alongX ? [o.w, y1 - y0, t] : [t, y1 - y0, o.w], 0.015);
+        const sill = o.kind === "window" ? o.sill ?? 0.95 : 0;
+        if (sill > 0.1) box(0, Math.min(sill, h));
+        if (h > top + 0.1) box(top, h);
+      }
       if (h > top + 0.05) {
         const a = s0 + o.at;
         const b = a + o.w;
@@ -232,6 +254,20 @@ export class Local {
     }
 
     if (kind === "void") return;
+
+    if (kind === "baie") {
+      /* baie coulissante toute hauteur : seuil, deux vantaux décalés */
+      const gh = Math.min(h, openingTop(o));
+      this.seg("faint", at(a, -ht, 0.02), at(b, -ht, 0.02));
+      this.seg("faint", at(a, ht, 0.02), at(b, ht, 0.02));
+      for (const sx of [a + 0.04, b - 0.04]) this.seg("medium", at(sx, 0, 0), at(sx, 0, gh));
+      this.seg("medium", at(a, -0.04, gh), at(a + o.w * 0.55, -0.04, gh));
+      this.seg("medium", at(b - o.w * 0.55, 0.04, gh), at(b, 0.04, gh));
+      this.seg("hair", at(a, -0.04, 0.03), at(a + o.w * 0.55, -0.04, 0.03));
+      this.seg("hair", at(b - o.w * 0.55, 0.04, 0.03), at(b, 0.04, 0.03));
+      for (const sx of [a + o.w * 0.55, b - o.w * 0.55]) this.seg("faint", at(sx, 0, 0.03), at(sx, 0, gh));
+      return;
+    }
 
     /* window / french : allège, appui, menuiserie, vitrage double */
     const sill = kind === "french" ? 0 : o.sill ?? 0.95;
@@ -649,4 +685,30 @@ export function apartmentT4(L, { W = 8, D = 12, H = 1.2, label = "T4" } = {}) {
   L.label("hair", "CH.3", [1.5, 0.02, 3.35], 0.3);
   L.label("hair", "SDB", [b + 1.02, 0.02, 4.75], 0.26);
   return spec;
+}
+
+/** Garde-corps vitré entre deux points (repère local) : vitrages, main courante. */
+export function glassRail(L, [ax, az], [bx, bz], { h = 1.0, y = 0 } = {}) {
+  const len = Math.hypot(bx - ax, bz - az);
+  const n = Math.max(1, Math.round(len / 1.2));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const x = ax + (bx - ax) * t;
+    const z = az + (bz - az) * t;
+    L.seg("faint", [x, y, z], [x, y + h - 0.05, z]);
+  }
+  L.seg("medium", [ax, y + h, az], [bx, y + h, bz]);
+  L.seg("faint", [ax, y + 0.06, az], [bx, y + 0.06, bz]);
+  L.seg("hair", [ax, y + h * 0.5, az], [ax + (bx - ax) * 0.35, y + h * 0.8, az + (bz - az) * 0.35]);
+}
+
+/** Piano à queue, vu en plan, caisse à hauteur de couvercle. */
+export function piano(L) {
+  const pts = [[0, 0], [1.5, 0], [1.5, 0.35], [1.25, 1.1], [0.8, 1.75], [0.35, 1.9], [0, 1.75], [0, 0]];
+  L.poly("medium", pts.map(([x, z]) => [x, 0.95, z]));
+  L.poly("hair", pts.map(([x, z]) => [x, 0.65, z]));
+  L.rect("faint", [0.1, 0.96, 0.08], [1.3, 0, 0], [0, 0, 0.18]);
+  for (let i = 1; i < 11; i++) L.seg("hair", [0.1 + i * 0.118, 0.97, 0.08], [0.1 + i * 0.118, 0.97, 0.26]);
+  for (const [x, z] of [[0.15, 0.2], [1.35, 0.3], [0.4, 1.6]]) L.seg("faint", [x, 0, z], [x, 0.65, z]);
+  L.box("faint", [0.45, 0, -0.65], [0.6, 0.48, 0.35]);
 }

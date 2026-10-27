@@ -13,7 +13,7 @@ const EASE = [0.32, 0.72, 0, 1];
  */
 export default function ThemeSection({ theme, flip = false, onOpenCarnet }) {
   const models = useMemo(
-    () => [{ id: theme.id, build: theme.build, el: theme.el }],
+    () => [{ id: theme.id, build: theme.build, el: theme.el, rot0: theme.rot0, sway: theme.sway, scale: theme.scale }],
     [theme]
   );
 

@@ -92,11 +92,13 @@ export default function LineScene({
       pivot.add(inner);
       const wrap = new THREE.Group();
       wrap.add(pivot);
-      const k = 30 / Math.max(size.x, size.z, size.y * 1.35);
+      const k = (30 / Math.max(size.x, size.z, size.y * 1.35)) * (m.scale ?? 1);
       wrap.scale.setScalar(k);
       wrap.visible = false;
       wrap.userData = {
-        spin: (Math.random() - 0.5) * 0.6,
+        /* une coupe se présente de face et se balance au lieu de tourner */
+        spin: (m.rot0 ?? 0) + (m.sway ? 0 : (Math.random() - 0.5) * 0.6),
+        sway: m.sway || 0,
         h: size.y * k,
         el: m.el ?? 0.62,
         pivot,
@@ -133,9 +135,10 @@ export default function LineScene({
       const wrap = S.entries[S.currentId];
       if (wrap) {
         if (!isDragging.current) {
-          wrap.userData.spin += dt * spinSpeed * spinDirection;
+          if (!wrap.userData.sway) wrap.userData.spin += dt * spinSpeed * spinDirection;
         }
-        wrap.rotation.y = wrap.userData.spin + S.scrollRot;
+        const sway = wrap.userData.sway * Math.sin(timer.getElapsed() * 0.22);
+        wrap.rotation.y = wrap.userData.spin + sway + S.scrollRot;
         rig.look = wrap.userData.h * lookHeight;
       }
       const az = rig.az + S.mouse.x * 0.17;

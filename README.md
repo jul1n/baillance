@@ -56,10 +56,13 @@ parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
     noyau, faux plancher, postes de travail) à l'ouest, deux T4 dans la même trame à l'est ;
   - **urbanisme et mixité** : îlot haussmannien en gradins — boulangerie, cabinet, logements
     se lisent niveau par niveau, chaque ressaut étant une coupe ;
-  - **logement de qualité** : coupe perspective d'une maison de ville traversante sur trois
-    niveaux, planchers acoustiques, loggias, escalier à deux volées ;
-  - **adaptation au climat** : coupe bioclimatique, pisé, double hauteur et lanterneau,
-    brise-soleil, angles solaires de 65° et 20°, puits canadien, noue, cuve.
+  - **logement de qualité** : axonométrie éclatée d'un duplex traversant — séjour en double
+    hauteur, bibliothèque, piano, loggia de 2 m, suite parentale, bureau en mezzanine —, rives
+    des planchers en coupe et « carotte » éclatée du plancher acoustique ;
+  - **adaptation au climat** : coupe sur une travée d'un immeuble bioclimatique R+3, présentée
+    de face et balancée doucement : quatre niveaux meublés, façade nord en fibre de bois,
+    dalles apparentes, cheminée de ventilation, jardins d'hiver, brise-soleil, photovoltaïque,
+    angles solaires de 65° et 20°, flux d'air, puits canadien, noue, cuve, annotations.
 - `LineScene.jsx` — rendu Three.js (caméra orthographique axonométrique, fond transparent)
   animé par **GSAP** : rotation continue réelle du modèle (turntable), parallaxe souris
   amortie, transitions entre modèles avec « mise en traits » (les lignes de construction
@@ -73,5 +76,5 @@ parties cachées) par des volumes invisibles qui n'écrivent que la profondeur.
 | Logement social | Rouge terracotta | Axonométrie écorchée : T4 traversants meublés, coursive, tour d'escalier, toiture partagée |
 | Transformation tertiaire | Bleu nuit | Dernier niveau écorché : bureaux d'un côté, logements de l'autre, grue en treillis |
 | Urbanisme et mixité | Vert sauge | Îlot haussmannien en gradins : commerce, cabinet, logements ; dôme, tram, canopée |
-| Logement de qualité | Beige chaud | Coupe perspective : maison de ville, planchers acoustiques, loggias, escalier |
-| Adaptation au changement climatique | Gris perle | Coupe bioclimatique : brise-soleil, flux d'air, course du soleil été/hiver |
+| Logement de qualité | Beige chaud | Axonométrie éclatée d'un duplex : double hauteur, mezzanine, plancher acoustique |
+| Adaptation au changement climatique | Gris perle | Coupe sur une travée : jardins d'hiver, cheminée de ventilation, cycles du soleil, de l'air et de l'eau |
